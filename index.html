@@ -503,7 +503,7 @@
   /* ── Responsive ── */
   /* ── Language toggle ── */
   .lang-toggle {
-    position: fixed; top: 0.8rem; right: 1.5rem; z-index: 200;
+    position: fixed; top: 0.5rem; right: 1.5rem; z-index: 200;
     display: flex; gap: 0;
   }
   .lang-toggle button {
@@ -535,8 +535,8 @@
     <h1 id="pageTitle">Factory Floor — Industrial Printing & Label Finishing</h1>
     <p id="pageSubtitle">Hover or tap any machine to learn what it does</p>
   </div>
-  <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
-    <a id="open3dLink" href="3d.html" style="padding:0.5rem 1.2rem; border-radius:6px; background:linear-gradient(135deg,#3b82f6,#9333ea); color:#fff; text-decoration:none; font-size:0.85rem; font-weight:600; transition:transform 0.2s;" onmouseenter="this.style.transform='scale(1.05)'" onmouseleave="this.style.transform='scale(1)'">Open 3D View</a>
+  <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap; padding-right:5rem;">
+    <a id="open3dLink" href="3d.html" style="padding:0.5rem 1.2rem; border-radius:6px; background:linear-gradient(135deg,#3b82f6,#9333ea); color:#fff; text-decoration:none; font-size:0.85rem; font-weight:600; transition:transform 0.2s;" onmouseenter="this.style.transform='scale(1.05)'" onmouseleave="this.style.transform='scale(1)'">Production Line</a>
   <div class="tabs">
     <button class="tab active-all" data-flow="all" onclick="setFlow('all')">All Equipment</button>
     <button class="tab" data-flow="sleeve" onclick="setFlow('sleeve')">Shrink Sleeve Flow</button>

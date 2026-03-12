@@ -2071,8 +2071,8 @@ function applyLang() {
 window.switchLang = function(lang) {
   setLang(lang);
   // Save current view mode so it persists across reload
-  if (is2DMode) {
-    sessionStorage.setItem('viewMode', '2d');
+  if (!is2DMode) {
+    sessionStorage.setItem('viewMode', '3d');
   } else {
     sessionStorage.removeItem('viewMode');
   }
@@ -2083,10 +2083,13 @@ window.switchLang = function(lang) {
 // Apply language on initial load
 applyLang();
 
-// Restore 2D mode if we were in 2D before language switch
-if (sessionStorage.getItem('viewMode') === '2d') {
+// Default to 2D view, unless we were explicitly in 3D before language switch
+if (sessionStorage.getItem('viewMode') === '3d') {
   sessionStorage.removeItem('viewMode');
-  window.toggleViewMode(); // switch to 2D
+  // stay in 3D (default code state)
+} else {
+  sessionStorage.removeItem('viewMode');
+  window.toggleViewMode(); // switch to 2D (default)
 }
 </script>
 
