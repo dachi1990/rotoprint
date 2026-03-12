@@ -406,6 +406,208 @@
     color: #c8d0e0;
   }
 
+  /* ── Upgrade modal ── */
+  .upgrade-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 300;
+    background: rgba(0,0,0,0.7);
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(4px);
+  }
+  .upgrade-overlay.visible { display: flex; }
+  .upgrade-modal {
+    background: #1a1d2e;
+    border: 1px solid #333;
+    border-radius: 14px;
+    padding: 2rem;
+    max-width: 640px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.5);
+  }
+  .upgrade-modal .um-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;
+  }
+  .upgrade-modal .um-title { font-size: 1.15rem; font-weight: 700; color: #fff; }
+  .upgrade-modal .um-close {
+    background: transparent; border: 1px solid #555; color: #888; width: 30px; height: 30px;
+    border-radius: 6px; font-size: 1.2rem; cursor: pointer; transition: all 0.2s;
+  }
+  .upgrade-modal .um-close:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
+  .upgrade-modal .um-intro { font-size: 0.88rem; line-height: 1.6; color: #999; margin-bottom: 1.5rem; }
+  .upgrade-card {
+    background: rgba(34,197,94,0.06);
+    border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 10px;
+    padding: 1.2rem;
+    margin-bottom: 1rem;
+  }
+  .upgrade-card h3 { font-size: 0.95rem; font-weight: 700; color: #22c55e; margin-bottom: 0.5rem; }
+  .upgrade-card p { font-size: 0.85rem; line-height: 1.6; color: #ccc; margin-bottom: 0.4rem; }
+  .upgrade-card .up-price { font-size: 0.85rem; font-weight: 600; color: #eab308; margin-bottom: 0.6rem; }
+  .upgrade-card .up-links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .upgrade-card .up-links a {
+    display: inline-block;
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    border: 1px solid #3b82f6;
+    background: rgba(59,130,246,0.12);
+    color: #60a5fa;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .upgrade-card .up-links a:hover { background: #3b82f6; color: #fff; }
+
+  /* ── Expansion dropdown ── */
+  .expansion-wrapper { position: relative; display: inline-block; }
+  .expansion-btn {
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    border: 1px solid #22c55e;
+    background: rgba(34,197,94,0.1);
+    color: #22c55e;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  .expansion-btn:hover { background: rgba(34,197,94,0.25); }
+  .expansion-dropdown {
+    display: none;
+    position: absolute;
+    top: 110%;
+    left: 0;
+    min-width: 220px;
+    background: #1a1d2e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    z-index: 100;
+    overflow: hidden;
+  }
+  .expansion-dropdown.open { display: block; }
+  .expansion-dropdown button {
+    display: block;
+    width: 100%;
+    padding: 0.65rem 1rem;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #2a2d3e;
+    color: #ccc;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .expansion-dropdown button:last-child { border-bottom: none; }
+  .expansion-dropdown button:hover { background: rgba(34,197,94,0.1); color: #22c55e; }
+
+  /* ── Expansion modal ── */
+  .exp-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 300;
+    background: rgba(0,0,0,0.75);
+    justify-content: center;
+    align-items: flex-start;
+    padding: 2vh 0;
+    overflow-y: auto;
+    backdrop-filter: blur(4px);
+  }
+  .exp-overlay.visible { display: flex; }
+  .exp-modal {
+    background: #1a1d2e;
+    border: 1px solid #333;
+    border-radius: 14px;
+    padding: 2rem;
+    max-width: 720px;
+    width: 92%;
+    margin: auto;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.5);
+  }
+  .exp-modal .em-header {
+    display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;
+  }
+  .exp-modal .em-title { font-size: 1.25rem; font-weight: 700; color: #fff; }
+  .exp-modal .em-close {
+    background: transparent; border: 1px solid #555; color: #888; width: 30px; height: 30px;
+    border-radius: 6px; font-size: 1.2rem; cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+  }
+  .exp-modal .em-close:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
+  .exp-verdict {
+    display: inline-block;
+    padding: 0.25rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+  .exp-verdict.red { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+  .exp-verdict.yellow { background: rgba(234,179,8,0.15); color: #facc15; border: 1px solid rgba(234,179,8,0.3); }
+  .exp-verdict.green { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+  .exp-summary { font-size: 0.92rem; line-height: 1.7; color: #bbb; margin-bottom: 1.5rem; }
+  .exp-section { margin-bottom: 1.5rem; }
+  .exp-section h3 { font-size: 0.9rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
+  .exp-section p { font-size: 0.85rem; line-height: 1.65; color: #bbb; }
+  .exp-machine-card {
+    background: rgba(59,130,246,0.05);
+    border: 1px solid rgba(59,130,246,0.15);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 0.8rem;
+  }
+  .exp-machine-card .emc-name { font-weight: 700; color: #60a5fa; font-size: 0.88rem; margin-bottom: 0.3rem; }
+  .exp-machine-card .emc-model { font-size: 0.78rem; color: #888; margin-bottom: 0.3rem; }
+  .exp-machine-card .emc-why { font-size: 0.82rem; color: #bbb; line-height: 1.5; margin-bottom: 0.4rem; }
+  .exp-machine-card .emc-price { font-size: 0.82rem; font-weight: 600; color: #eab308; margin-bottom: 0.5rem; }
+  .exp-machine-card .emc-link {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 5px;
+    border: 1px solid #3b82f6;
+    background: rgba(59,130,246,0.1);
+    color: #60a5fa;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .exp-machine-card .emc-link:hover { background: #3b82f6; color: #fff; }
+  .exp-total {
+    background: rgba(234,179,8,0.06);
+    border-left: 3px solid #eab308;
+    padding: 0.8rem 1rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1rem 0;
+  }
+  .exp-total h4 { font-size: 0.85rem; font-weight: 700; color: #eab308; margin-bottom: 0.3rem; }
+  .exp-total p { font-size: 0.85rem; color: #ccc; }
+  .exp-tip {
+    background: rgba(34,197,94,0.06);
+    border-left: 3px solid #22c55e;
+    padding: 0.8rem 1rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1rem 0;
+  }
+  .exp-tip h4 { font-size: 0.85rem; font-weight: 700; color: #22c55e; margin-bottom: 0.3rem; }
+  .exp-tip p { font-size: 0.85rem; color: #bbb; line-height: 1.5; }
+  .exp-conclusion {
+    background: rgba(59,130,246,0.06);
+    border-left: 3px solid #3b82f6;
+    padding: 0.8rem 1rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1rem 0;
+  }
+  .exp-conclusion h4 { font-size: 0.85rem; font-weight: 700; color: #60a5fa; margin-bottom: 0.3rem; }
+  .exp-conclusion p { font-size: 0.85rem; color: #bbb; line-height: 1.5; }
+
   /* ── Play/Pause button ── */
   .play-btn {
     padding: 0.5rem 1.2rem;
@@ -541,6 +743,14 @@
     <button class="tab active-all" data-flow="all" onclick="setFlow('all')">All Equipment</button>
     <button class="tab" data-flow="sleeve" onclick="setFlow('sleeve')">Shrink Sleeve Flow</button>
     <button class="tab" data-flow="bopp" onclick="setFlow('bopp')">BOPP Label Flow</button>
+  </div>
+  <div class="expansion-wrapper">
+    <button class="expansion-btn" id="expansionBtn" onclick="toggleExpansionMenu()">Expansion Ideas</button>
+    <div class="expansion-dropdown" id="expansionDropdown">
+      <button onclick="openExpansion('psl')" id="expMenuPSL">Peel-and-Stick Labels</button>
+      <button onclick="openExpansion('lidding')" id="expMenuLidding">Lidding Film &amp; Lids</button>
+      <button onclick="openExpansion('bottles')" id="expMenuBottles">Cans &amp; Bottles</button>
+    </div>
   </div>
   </div>
 </div>
@@ -852,6 +1062,29 @@
   </div>
 </div>
 
+<!-- Upgrade options modal -->
+<div class="upgrade-overlay" id="upgradeOverlay" onclick="if(event.target===this)closeUpgradeModal()">
+  <div class="upgrade-modal">
+    <div class="um-header">
+      <div class="um-title" id="umTitle"></div>
+      <button class="um-close" onclick="closeUpgradeModal()">&times;</button>
+    </div>
+    <div class="um-intro" id="umIntro"></div>
+    <div id="umCards"></div>
+  </div>
+</div>
+
+<!-- Expansion idea modal -->
+<div class="exp-overlay" id="expOverlay" onclick="if(event.target===this)closeExpansion()">
+  <div class="exp-modal">
+    <div class="em-header">
+      <div class="em-title" id="expTitle"></div>
+      <button class="em-close" onclick="closeExpansion()">&times;</button>
+    </div>
+    <div id="expContent"></div>
+  </div>
+</div>
+
 <script type="module">
 import { T, getLang, setLang } from './lang.js';
 
@@ -1114,6 +1347,7 @@ function showTip(el) {
     <div class="tt-example"><strong>${exampleLabel}</strong> ${example}</div>
     <dl class="tt-specs">${specsHtml}</dl>
     <div class="tt-status ${statusClass}">${d.statusText}</div>
+    ${(id === 'ztm' || id === 'ztm2') ? `<button onclick="event.stopPropagation(); openUpgradeModal()" style="margin-top:0.6rem; padding:0.35rem 0.8rem; border-radius:6px; border:1px solid #22c55e; background:rgba(34,197,94,0.12); color:#22c55e; font-size:0.75rem; font-weight:600; cursor:pointer; transition:all 0.2s;" onmouseenter="this.style.background='#22c55e';this.style.color='#000'" onmouseleave="this.style.background='rgba(34,197,94,0.12)';this.style.color='#22c55e'">${L.upgradeOptions}</button>` : ''}
   `;
 
   // Position
@@ -1190,9 +1424,156 @@ function closeComparison() {
   document.getElementById('compOverlay').classList.remove('visible');
 }
 
+/* ── Upgrade options modal ── */
+function openUpgradeModal() {
+  const L = T[getLang()];
+  document.getElementById('umTitle').textContent = L.upgradeTitle;
+  document.getElementById('umIntro').textContent = L.upgradeIntro;
+  document.getElementById('umCards').innerHTML = `
+    <div class="upgrade-card">
+      <h3>${L.upgradeOpt1Title}</h3>
+      <p>${L.upgradeOpt1Desc}</p>
+      <div class="up-price">${L.upgradeOpt1Price}</div>
+      <div class="up-links">
+        <a href="https://chinaztjx.en.made-in-china.com/product/xwOTqjNCkGkr/China-Automatic-Inspection-Machine-for-Printing-Defect.html" target="_blank" rel="noopener">${L.upgradeCheckOnline} &rarr;</a>
+      </div>
+    </div>
+    <div class="upgrade-card">
+      <h3>${L.upgradeOpt2Title}</h3>
+      <p>${L.upgradeOpt2Desc}</p>
+      <div class="up-price">${L.upgradeOpt2Price}</div>
+      <div class="up-links">
+        <a href="https://www.havesino.com/HN1300R-Slitter-Rewinder" target="_blank" rel="noopener">${L.upgradeCheckOnline} (Official) &rarr;</a>
+        <a href="https://havesino.en.made-in-china.com/product-group/AestnQpjvuTv/Inspecting-Rewinder-catalog-1.html" target="_blank" rel="noopener">${L.upgradeCheckOnline} (Catalog) &rarr;</a>
+        <a href="https://havesino.en.made-in-china.com/product/XFYtxIOULShd/China-China-Supplier-Paper-Filmlaminated-Film-Adhesive-Label-Printing-Inspection-and-Rewinder-Machine.html" target="_blank" rel="noopener">${L.upgradeCheckOnline} (Listing) &rarr;</a>
+      </div>
+    </div>
+  `;
+  document.getElementById('upgradeOverlay').classList.add('visible');
+}
+
+function closeUpgradeModal() {
+  document.getElementById('upgradeOverlay').classList.remove('visible');
+}
+
+/* ── Expansion ideas ── */
+function toggleExpansionMenu() {
+  const dd = document.getElementById('expansionDropdown');
+  dd.classList.toggle('open');
+}
+
+// Close dropdown when clicking elsewhere
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.expansion-wrapper')) {
+    document.getElementById('expansionDropdown').classList.remove('open');
+  }
+});
+
+function buildExpansionContent(type) {
+  const L = T[getLang()];
+  let html = '';
+
+  if (type === 'psl') {
+    html = buildExpPanel(L, 'PSL');
+  } else if (type === 'lidding') {
+    html = buildExpPanel(L, 'Lidding');
+  } else if (type === 'bottles') {
+    html = buildExpBottlesPanel(L);
+  }
+  return html;
+}
+
+function buildExpPanel(L, key) {
+  const title = L['exp' + key + 'Title'];
+  const verdict = L['exp' + key + 'Verdict'];
+  const verdictClass = L['exp' + key + 'VerdictClass'];
+  const summary = L['exp' + key + 'Summary'];
+  const what = L['exp' + key + 'What'];
+  const whatText = L['exp' + key + 'WhatText'];
+  const current = L['exp' + key + 'Current'];
+  const currentText = L['exp' + key + 'CurrentText'];
+  const need = L['exp' + key + 'Need'];
+  const machines = L['exp' + key + 'Machines'];
+  const total = L['exp' + key + 'Total'];
+  const totalText = L['exp' + key + 'TotalText'];
+  const tipKey = 'exp' + key + 'Tip';
+  const tip = L[tipKey];
+  const conclusion = L['exp' + key + 'Conclusion'];
+  const conclusionText = L['exp' + key + 'ConclusionText'];
+  const viewOnline = L.expViewOnline;
+
+  let machinesHtml = '';
+  if (machines) {
+    machines.forEach(m => {
+      machinesHtml += `
+        <div class="exp-machine-card">
+          <div class="emc-name">${m.name}</div>
+          <div class="emc-model">${m.model}</div>
+          <div class="emc-why">${m.why}</div>
+          <div class="emc-price">${m.price}</div>
+          <a class="emc-link" href="${m.link}" target="_blank" rel="noopener">${viewOnline} &rarr;</a>
+        </div>
+      `;
+    });
+  }
+
+  return `
+    <div class="exp-verdict ${verdictClass}">${verdict}</div>
+    <div class="exp-summary">${summary}</div>
+    <div class="exp-section"><h3>${what}</h3><p>${whatText}</p></div>
+    <div class="exp-section"><h3>${current}</h3><p>${currentText}</p></div>
+    <div class="exp-section">
+      <h3>${need}</h3>
+      ${machinesHtml}
+    </div>
+    <div class="exp-total"><h4>${total}</h4><p>${totalText}</p></div>
+    <div class="exp-tip"><h4>${L.expTip}</h4><p>${tip}</p></div>
+    <div class="exp-conclusion"><h4>${conclusion}</h4><p>${conclusionText}</p></div>
+  `;
+}
+
+function buildExpBottlesPanel(L) {
+  const key = 'Bottles';
+  const verdict = L['exp' + key + 'Verdict'];
+  const verdictClass = L['exp' + key + 'VerdictClass'];
+  const summary = L['exp' + key + 'Summary'];
+  const what = L['exp' + key + 'What'];
+  const whatText = L['exp' + key + 'WhatText'];
+  const current = L['exp' + key + 'Current'];
+  const currentText = L['exp' + key + 'CurrentText'];
+  const need = L['exp' + key + 'Need'];
+  const needText = L['exp' + key + 'NeedText'];
+  const conclusion = L['exp' + key + 'Conclusion'];
+  const conclusionText = L['exp' + key + 'ConclusionText'];
+  const tip = L['exp' + key + 'Tip'];
+
+  return `
+    <div class="exp-verdict ${verdictClass}">${verdict}</div>
+    <div class="exp-summary">${summary}</div>
+    <div class="exp-section"><h3>${what}</h3><p>${whatText}</p></div>
+    <div class="exp-section"><h3>${current}</h3><p>${currentText}</p></div>
+    <div class="exp-section"><h3>${need}</h3><p>${needText}</p></div>
+    <div class="exp-tip"><h4>${L.expTip}</h4><p>${tip}</p></div>
+    <div class="exp-conclusion"><h4>${conclusion}</h4><p>${conclusionText}</p></div>
+  `;
+}
+
+function openExpansion(type) {
+  const L = T[getLang()];
+  const titles = { psl: L.expPSLTitle, lidding: L.expLiddingTitle, bottles: L.expBottlesTitle };
+  document.getElementById('expTitle').textContent = titles[type];
+  document.getElementById('expContent').innerHTML = buildExpansionContent(type);
+  document.getElementById('expOverlay').classList.add('visible');
+  document.getElementById('expansionDropdown').classList.remove('open');
+}
+
+function closeExpansion() {
+  document.getElementById('expOverlay').classList.remove('visible');
+}
+
 // Close on Escape
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeComparison();
+  if (e.key === 'Escape') { closeComparison(); closeUpgradeModal(); closeExpansion(); }
 });
 
 /* ── Play / Pause ── */
@@ -1286,6 +1667,12 @@ function applyLang() {
   document.getElementById('cmpBestFor').textContent = L.compBestFor;
   document.getElementById('compSummaryLabel').textContent = L.compSummary;
 
+  // Expansion dropdown
+  document.getElementById('expansionBtn').textContent = L.expansionBtn;
+  document.getElementById('expMenuPSL').textContent = L.expPSL;
+  document.getElementById('expMenuLidding').textContent = L.expLidding;
+  document.getElementById('expMenuBottles').textContent = L.expBottles;
+
   // Language toggle active state
   document.getElementById('langEn').classList.toggle('active', getLang() === 'en');
   document.getElementById('langKa').classList.toggle('active', getLang() === 'ka');
@@ -1297,6 +1684,11 @@ window.showTip = showTip;
 window.hideTip = hideTip;
 window.openComparison = openComparison;
 window.closeComparison = closeComparison;
+window.openUpgradeModal = openUpgradeModal;
+window.closeUpgradeModal = closeUpgradeModal;
+window.toggleExpansionMenu = toggleExpansionMenu;
+window.openExpansion = openExpansion;
+window.closeExpansion = closeExpansion;
 window.togglePlay = togglePlay;
 window.switchLang = function(lang) {
   setLang(lang);
