@@ -1,0 +1,2094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Factory Floor — Production Line Visualization</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+  #canvas { width: 100vw; height: 100vh; display: block; }
+
+  /* ── Top bar ── */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 0.8rem 1.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .topbar h1 { font-size: 1rem; font-weight: 700; color: #fff; white-space: nowrap; }
+  .topbar .nav-link {
+    color: #666; font-size: 0.8rem; text-decoration: none;
+    border: 1px solid #333; padding: 0.35rem 0.8rem; border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .topbar .nav-link:hover { color: #fff; border-color: #666; }
+
+  .controls {
+    display: flex; gap: 0.4rem; align-items: center;
+  }
+  .btn {
+    padding: 0.4rem 1rem; border-radius: 6px; border: 1px solid #333;
+    background: transparent; color: #999; font-size: 0.78rem; cursor: pointer;
+    transition: all 0.25s;
+  }
+  .btn:hover { border-color: #666; color: #fff; }
+  .btn.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+  .btn.active-sleeve { background: #9333ea; border-color: #9333ea; color: #fff; }
+  .btn.active-bopp { background: #0ea5e9; border-color: #0ea5e9; color: #fff; }
+
+  .speed-control {
+    display: flex; align-items: center; gap: 0.4rem; margin-left: 0.5rem;
+  }
+  .speed-control label { font-size: 0.7rem; color: #666; }
+  .speed-control input[type=range] {
+    width: 80px; accent-color: #3b82f6;
+  }
+
+  /* ── Info panel (hover) ── */
+  .info-panel {
+    position: fixed; bottom: 1.5rem; left: 1.5rem; z-index: 100;
+    background: rgba(15,15,25,0.92);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 1.3rem 1.5rem;
+    width: 360px;
+    opacity: 0; transform: translateY(10px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+  }
+  .info-panel.visible { opacity: 1; transform: translateY(0); }
+  .info-panel .ip-name { font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem; }
+  .info-panel .ip-role { font-size: 0.8rem; color: #888; margin-bottom: 0.7rem; }
+  .info-panel .ip-desc {
+    font-size: 0.82rem; line-height: 1.55; color: #bbb;
+    border-left: 3px solid #3b82f6; padding-left: 0.8rem;
+  }
+  .info-panel .ip-example {
+    font-size: 0.78rem; line-height: 1.5; color: #a0a0b0;
+    border-left: 3px solid #eab308; padding-left: 0.8rem;
+    margin-top: 0.6rem;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 100;
+    background: rgba(15,15,25,0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    font-size: 0.72rem;
+  }
+  .legend div { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; color: #888; }
+  .legend div:last-child { margin-bottom: 0; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* ── Camera hint ── */
+  .camera-hint {
+    position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+    z-index: 90; color: #444; font-size: 0.75rem;
+    animation: fadeOutHint 5s forwards;
+  }
+  @keyframes fadeOutHint { 0%,60% { opacity: 1; } 100% { opacity: 0; pointer-events: none; } }
+
+  /* ── Compare button in info panel ── */
+  .ip-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+  .ip-compare-btn {
+    display: none;
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
+    border: 1px solid #3b82f6;
+    background: rgba(59,130,246,0.15);
+    color: #60a5fa;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+  .ip-compare-btn:hover { background: #3b82f6; color: #fff; }
+  .ip-compare-btn.visible { display: inline-block; }
+  .ip-readmore-btn {
+    display: none;
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
+    border: 1px solid #eab308;
+    background: rgba(234,179,8,0.12);
+    color: #eab308;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all 0.2s;
+    white-space: nowrap;
+    margin-top: 0.5rem;
+  }
+  .ip-readmore-btn:hover { background: #eab308; color: #000; }
+  .ip-readmore-btn.visible { display: inline-block; }
+  .info-panel.visible { pointer-events: auto; }
+
+  /* ── Read more modal ── */
+  .readmore-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 200;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    justify-content: center;
+    align-items: center;
+  }
+  .readmore-overlay.visible { display: flex; }
+  .readmore-modal {
+    background: #1a1d2e;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    width: 720px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+  }
+  .readmore-modal .rm-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.2rem; padding-bottom: 0.8rem; border-bottom: 1px solid #2a2d3e;
+  }
+  .readmore-modal .rm-title { font-size: 1.15rem; font-weight: 700; color: #fff; }
+  .readmore-modal .rm-close {
+    width: 36px; height: 36px; border-radius: 8px; border: 1px solid #444;
+    background: transparent; color: #888; font-size: 1.2rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+  }
+  .readmore-modal .rm-close:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
+  .readmore-modal .rm-body { font-size: 0.88rem; line-height: 1.75; color: #ccc; }
+  .readmore-modal .rm-body p { margin-bottom: 1rem; }
+  .readmore-modal .rm-body strong { color: #fff; }
+  .readmore-modal .rm-body .rm-highlight {
+    background: rgba(234,179,8,0.08);
+    border-left: 3px solid #eab308;
+    padding: 0.8rem 1rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1rem 0;
+    color: #e0d5b0;
+  }
+  .readmore-modal .rm-body ul {
+    margin: 0.8rem 0 1rem 1.2rem;
+    color: #bbb;
+  }
+  .readmore-modal .rm-body ul li { margin-bottom: 0.5rem; }
+  .readmore-modal .rm-body .rm-conclusion {
+    background: rgba(59,130,246,0.08);
+    border-left: 3px solid #3b82f6;
+    padding: 0.8rem 1rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1rem 0;
+    color: #a0c4f0;
+  }
+
+  /* ── Play/Pause button ── */
+  .play-pause-btn {
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    border: 1px solid #22c55e;
+    background: rgba(34,197,94,0.1);
+    color: #22c55e;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    margin-right: 0.3rem;
+  }
+  .play-pause-btn:hover { background: rgba(34,197,94,0.2); }
+  .play-pause-btn.paused {
+    border-color: #22c55e;
+    color: #22c55e;
+    background: rgba(34,197,94,0.1);
+  }
+
+  /* ── Comparison modal ── */
+  .comp-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 200;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    justify-content: center;
+    align-items: center;
+  }
+  .comp-overlay.visible { display: flex; }
+  .comp-modal {
+    background: #1a1d2e;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 2rem;
+    width: 800px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+  }
+  .comp-modal .cm-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #2a2d3e;
+  }
+  .comp-modal .cm-title { font-size: 1.15rem; font-weight: 700; color: #fff; }
+  .comp-modal .cm-close {
+    width: 36px; height: 36px; border-radius: 8px; border: 1px solid #444;
+    background: transparent; color: #888; font-size: 1.2rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+  }
+  .comp-modal .cm-close:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
+  .comp-modal .cm-grid {
+    display: grid; grid-template-columns: 135px 1fr 1fr; gap: 0; font-size: 0.82rem;
+  }
+  .cm-head-label { padding: 0.8rem; background: rgba(34,197,94,0.06); border-bottom: 1px solid #2a2d3e; }
+  .cm-head { font-weight: 700; color: #fff; font-size: 0.88rem; padding: 0.8rem; background: rgba(34,197,94,0.06); border-bottom: 1px solid #2a2d3e; text-align: center; }
+  .cm-label { color: #666; font-weight: 600; padding: 0.55rem 0.8rem; border-bottom: 1px solid #1e2030; }
+  .cm-val { color: #ccc; padding: 0.55rem 0.8rem; border-bottom: 1px solid #1e2030; text-align: center; }
+  .cm-winner { color: #22c55e !important; font-weight: 700; }
+  .cm-verdict {
+    margin-top: 1.5rem; padding: 1rem 1.2rem; background: rgba(59,130,246,0.08);
+    border-left: 3px solid #3b82f6; border-radius: 0 10px 10px 0;
+    font-size: 0.85rem; line-height: 1.6; color: #c8d0e0;
+  }
+
+  /* ── Navigation pad (Google Maps style) ── */
+  .nav-pad {
+    position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+    z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    pointer-events: auto;
+  }
+  .nav-pad .nav-row { display: flex; gap: 2px; }
+  .nav-pad button {
+    width: 38px; height: 38px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(15,15,25,0.85);
+    backdrop-filter: blur(12px);
+    color: #999; font-size: 1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; padding: 0;
+  }
+  .nav-pad button:hover { background: rgba(59,130,246,0.3); color: #fff; border-color: rgba(59,130,246,0.5); }
+  .nav-pad button:active { background: rgba(59,130,246,0.5); transform: scale(0.92); }
+  .nav-pad button svg { width: 18px; height: 18px; fill: currentColor; }
+  .nav-pad .nav-center { border-radius: 50%; width: 34px; height: 34px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px; }
+  .nav-pad .nav-zoom { display: flex; flex-direction: column; gap: 2px; position: absolute; right: -46px; top: 50%; transform: translateY(-50%); }
+  .nav-pad .nav-zoom button { width: 34px; height: 34px; font-size: 1.2rem; font-weight: 700; }
+
+  /* ── 2D Canvas ── */
+  #canvas2d {
+    width: 100vw; height: 100vh; display: none;
+    position: fixed; top: 0; left: 0; z-index: 50; cursor: grab;
+  }
+  #canvas2d.active { display: block; }
+  #canvas2d:active { cursor: grabbing; }
+  #canvas.hidden { display: none; }
+
+  .view-toggle {
+    padding: 0.4rem 1rem; border-radius: 6px;
+    border: 1px solid #f97316; background: rgba(249,115,22,0.1);
+    color: #f97316; font-size: 0.78rem; font-weight: 600;
+    cursor: pointer; transition: all 0.25s;
+  }
+  .view-toggle:hover { background: rgba(249,115,22,0.2); }
+  .view-toggle.is2d { background: #f97316; color: #fff; }
+
+  .lang-toggle {
+    display: flex; gap: 0; margin-left: 0.5rem;
+  }
+  .lang-toggle button {
+    padding: 0.3rem 0.6rem; border: 1px solid #444;
+    background: transparent; color: #888; font-size: 0.7rem; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .lang-toggle button:first-child { border-radius: 4px 0 0 4px; }
+  .lang-toggle button:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
+  .lang-toggle button.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+
+  @media (max-width: 800px) {
+    .comp-modal { padding: 1.2rem; }
+    .comp-modal .cm-grid { grid-template-columns: 100px 1fr 1fr; font-size: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex; align-items:center; gap:1rem;">
+    <h1 id="topTitle">3D Production Line</h1>
+    <a class="nav-link" id="navBack" href="index.html">Back to Overview</a>
+  </div>
+  <div class="controls">
+    <button class="btn active" id="btnAll" onclick="setView('all')">Both Lines</button>
+    <button class="btn" id="btnSleeve" onclick="setView('sleeve')">Shrink Sleeve</button>
+    <button class="btn" id="btnBopp" onclick="setView('bopp')">BOPP Labels</button>
+    <button class="view-toggle" id="viewToggle" onclick="toggleViewMode()">2D View</button>
+    <button class="btn" id="resetViewBtn" onclick="resetView()" style="border-color:#666;">Reset View</button>
+    <button class="play-pause-btn" id="playPauseBtn" onclick="togglePlayPause()">&#9724; Stop</button>
+    <div class="speed-control">
+      <label id="speedLabel">Speed</label>
+      <input type="range" id="speedSlider" min="0.1" max="3" step="0.1" value="1">
+    </div>
+    <div class="lang-toggle" id="langToggle">
+      <button onclick="switchLang('en')" id="langEn">EN</button>
+      <button onclick="switchLang('ka')" id="langKa">KA</button>
+    </div>
+  </div>
+</div>
+
+<div class="camera-hint" id="cameraHint">Click & drag to orbit — scroll to zoom — right-click to pan — double-click a machine to focus</div>
+
+<div class="info-panel" id="infoPanel">
+  <div class="ip-header">
+    <div>
+      <div class="ip-name" id="ipName"></div>
+      <div class="ip-role" id="ipRole"></div>
+    </div>
+    <button class="ip-compare-btn" id="ipCompareBtn" onclick="openComparison()"></button>
+  </div>
+  <div class="ip-desc" id="ipDesc"></div>
+  <div class="ip-example" id="ipExample"></div>
+  <button class="ip-readmore-btn" id="ipReadmoreBtn" onclick="openReadmore()">Read more</button>
+</div>
+
+<!-- Read more modal (dynamic) -->
+<div class="readmore-overlay" id="readmoreOverlay" onclick="if(event.target===this)closeReadmore()">
+  <div class="readmore-modal">
+    <div class="rm-header">
+      <div class="rm-title" id="rmTitle"></div>
+      <button class="rm-close" onclick="closeReadmore()">&times;</button>
+    </div>
+    <div class="rm-body" id="rmBody"></div>
+  </div>
+</div>
+
+<div class="nav-pad" id="navPad">
+  <button onclick="navPan('up')" title="Pan up"><svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg></button>
+  <div class="nav-row">
+    <button onclick="navPan('left')" title="Pan left"><svg viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z"/></svg></button>
+    <button class="nav-center" onclick="resetView()" title="Reset view">RST</button>
+    <button onclick="navPan('right')" title="Pan right"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></button>
+  </div>
+  <button onclick="navPan('down')" title="Pan down"><svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></button>
+  <div class="nav-zoom">
+    <button onclick="navZoom(1)" title="Zoom in">+</button>
+    <button onclick="navZoom(-1)" title="Zoom out">&minus;</button>
+  </div>
+</div>
+
+<div class="legend">
+  <div><span class="dot" style="background:#22c55e"></span> <span id="legPrinting">Printing</span></div>
+  <div><span class="dot" style="background:#eab308"></span> <span id="legInspection">Inspection</span></div>
+  <div><span class="dot" style="background:#f97316"></span> <span id="legSlitting">Slitting</span></div>
+  <div><span class="dot" style="background:#ec4899"></span> <span id="legSeaming">Seaming</span></div>
+  <div><span class="dot" style="background:#64748b"></span> <span id="legUtility">Utility</span></div>
+  <div><span class="dot" style="background:#ef4444"></span> <span id="legIdle">Idle</span></div>
+  <div style="margin-top:0.3rem; border-top: 1px solid #222; padding-top: 0.4rem;">
+    <span class="dot" style="background:#a855f7"></span> <span id="legSleeve">Sleeve material flow</span>
+  </div>
+  <div><span class="dot" style="background:#38bdf8"></span> <span id="legBopp">BOPP material flow</span></div>
+</div>
+
+<div class="comp-overlay" id="compOverlay" onclick="if(event.target===this)closeComparison()">
+  <div class="comp-modal">
+    <div class="cm-header">
+      <div class="cm-title" id="cmTitle">YAD-K8800 vs YA800 — Printing Press Comparison</div>
+      <button class="cm-close" onclick="closeComparison()">&times;</button>
+    </div>
+    <div class="cm-grid">
+      <div class="cm-head-label"></div>
+      <div class="cm-head">YAD-K8800<br><span style="font-size:0.68rem;font-weight:400;color:#22c55e;" id="cmHeadYad">Primary &middot; High Speed Auto Register</span></div>
+      <div class="cm-head">YA800<br><span style="font-size:0.68rem;font-weight:400;color:#eab308;" id="cmHeadYa800">Backup &middot; Standard Gravure</span></div>
+
+      <div class="cm-label" id="cmLblManuf">Manufacturer</div>
+      <div class="cm-val">WITY / Jinghua Machinery Co.</div>
+      <div class="cm-val">WITY Machinery Group</div>
+
+      <div class="cm-label" id="cmLblManual">Manual Name</div>
+      <div class="cm-val" style="font-size:0.75rem;">MODEL YAD-8800K High Speed Auto Register Gravure Printing Machine</div>
+      <div class="cm-val" style="font-size:0.75rem;">MODEL YA 600/800/1100 Gravure Printing Machine</div>
+
+      <div class="cm-label" id="cmLblRole">Role</div>
+      <div class="cm-val">Main press &mdash; high-volume, flexible packaging capable</div>
+      <div class="cm-val">Backup &mdash; short runs, simpler jobs</div>
+
+      <div class="cm-label" id="cmLblPrintW">Print Width</div>
+      <div class="cm-val">800 mm</div>
+      <div class="cm-val">800 mm (max web 820 mm)</div>
+
+      <div class="cm-label" id="cmLblSpeed">Speed</div>
+      <div class="cm-val cm-winner">50&ndash;150 m/min</div>
+      <div class="cm-val">10&ndash;60 m/min</div>
+
+      <div class="cm-label" id="cmLblPrecision">Overprint Precision</div>
+      <div class="cm-val cm-winner">&pm;0.12 mm (auto register)</div>
+      <div class="cm-val">Manual adjustment</div>
+
+      <div class="cm-label" id="cmLblReg">Registration</div>
+      <div class="cm-val cm-winner">Automatic color-to-color alignment</div>
+      <div class="cm-val">Manual longitudinal &amp; transverse</div>
+
+      <div class="cm-label" id="cmLblColors">Color Stations</div>
+      <div class="cm-val">8 printing-unit operation boxes</div>
+      <div class="cm-val cm-winner">1&ndash;10 configurable</div>
+
+      <div class="cm-label" id="cmLblCylinder">Cylinder Diameter</div>
+      <div class="cm-val">&mdash;</div>
+      <div class="cm-val">80&ndash;270 mm</div>
+
+      <div class="cm-label" id="cmLblRollDia">Roll Diameter</div>
+      <div class="cm-val">600 mm (76 mm core)</div>
+      <div class="cm-val">Max 600 mm</div>
+
+      <div class="cm-label" id="cmLblMaterials">Materials</div>
+      <div class="cm-val cm-winner" style="text-align:left;font-size:0.76rem;">OPP, BOPP, CPP, PET, PA, cellophane, PVC, PO, PVDC &amp; composite films up to 150 g/m&sup2;</div>
+      <div class="cm-val" style="text-align:left;font-size:0.76rem;">PE, PP, polyester, aluminum foil</div>
+
+      <div class="cm-label" id="cmLblFeatures">Key Features</div>
+      <div class="cm-val" style="text-align:left;font-size:0.76rem;">Inspection unit, auto color register control, A/B shaft change, automatic roll receiving</div>
+      <div class="cm-val" style="text-align:left;font-size:0.76rem;">Separate heating &amp; fan drying, manual overprint adjustment, cylinder changes</div>
+
+      <div class="cm-label" id="cmLblBestFor">Best For</div>
+      <div class="cm-val" style="color:#22c55e;">Large runs, multi-color labels, flexible packaging (herbs, snacks, sachets, composite films)</div>
+      <div class="cm-val" style="color:#eab308;">Short runs, simpler designs, overflow when YAD is busy</div>
+    </div>
+    <div class="cm-verdict" id="cmVerdict">
+      <strong>Summary:</strong> The YAD-K8800 is the true workhorse &mdash; 2.5&times; faster, nearly 2&times; more precise with automatic color registration, and handles a much wider range of materials including composite films up to 150 g/m&sup2;. It&rsquo;s positioned as a flexible-packaging press, not just a label printer. The YA800 trades speed and precision for simpler operation and flexibility with up to 10 color stations. Use the YAD for big production runs and complex multi-material jobs; the YA800 for short runs, simpler single-material work, or when the YAD is busy.
+    </div>
+  </div>
+</div>
+
+<canvas id="canvas2d"></canvas>
+<canvas id="canvas"></canvas>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { T, getLang, setLang } from './lang.js';
+
+function tt(key) { return T[getLang()][key] || key; }
+
+/* ─────────── Scene setup ─────────── */
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a0f);
+scene.fog = new THREE.FogExp2(0x0a0a0f, 0.008);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
+camera.position.set(30, 25, 40);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 2, 0);
+controls.maxPolarAngle = Math.PI / 2.05;
+controls.minDistance = 3;
+controls.maxDistance = 150;
+controls.panSpeed = 1.5;
+controls.zoomSpeed = 1.4;
+controls.screenSpacePanning = true;  // pan follows screen direction, not ground plane
+controls.enablePan = true;
+
+/* ─────────── Lighting ─────────── */
+const ambientLight = new THREE.AmbientLight(0x334455, 0.6);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dirLight.position.set(20, 30, 10);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+dirLight.shadow.camera.left = -40;
+dirLight.shadow.camera.right = 40;
+dirLight.shadow.camera.top = 40;
+dirLight.shadow.camera.bottom = -40;
+scene.add(dirLight);
+
+const fillLight = new THREE.DirectionalLight(0x4488cc, 0.3);
+fillLight.position.set(-15, 10, -10);
+scene.add(fillLight);
+
+/* ─────────── Floor ─────────── */
+const floorGeo = new THREE.PlaneGeometry(120, 80);
+const floorMat = new THREE.MeshStandardMaterial({
+  color: 0x111118,
+  roughness: 0.9,
+  metalness: 0.1,
+});
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Grid
+const gridHelper = new THREE.GridHelper(120, 60, 0x1a1a25, 0x1a1a25);
+gridHelper.position.y = 0.01;
+scene.add(gridHelper);
+
+/* ─────────── Colors ─────────── */
+const COLORS = {
+  printing: 0x22c55e,
+  inspection: 0xeab308,
+  slitting: 0xf97316,
+  seaming: 0xec4899,
+  utility: 0x64748b,
+  idle: 0xef4444,
+  sleeve: 0xa855f7,
+  bopp: 0x38bdf8,
+  metal: 0x888899,
+  darkMetal: 0x444455,
+};
+
+/* ─────────── Machine data ─────────── */
+const MACHINES = {
+  yad:   { name:'YAD-K8800 — Printer', role:'High-Speed Gravure Press (Primary)', stage:'printing', pos:[-16,0,0], size:[6,3.5,3], flows:['sleeve','bopp'],
+    desc:'The main printing machine. Takes plain plastic film and prints all colors/logos using engraved metal cylinders — one cylinder per color. Film passes through each color station until artwork is complete.',
+    example:'Like a giant stamp roller with 8 stations. A juice bottle label with 8 colors rolls through all 8 — each stamps a different color. Prints ~2.5 football fields of film per minute.' },
+  ya800: { name:'YA800 — Printer', role:'Gravure Press (Backup)', stage:'printing', pos:[-16,0,8], size:[4.5,2.8,2.5], flows:['sleeve','bopp'], notInProduction:true,
+    desc:'Backup printing press. Same job as the YAD but slower and less precise. Used for shorter runs, simpler jobs, or when main press is busy.',
+    example:'If the YAD is a highway printer, this is the reliable city-road printer — handles smaller orders like 5,000 labels instead of 500,000.' },
+  ztm:   { name:'ZTM-E1300 — Quality Check', role:'Inspection & Rewind Machine', stage:'inspection', pos:[-4,0,0], size:[3.5,2.5,2.5], flows:['sleeve','bopp'],
+    desc:'Quality control machine. Operator checks printed roll at high speed for defects (smudges, color shifts). When a defect is found, machine memorizes the spot, reverses back, operator cuts out the bad section and resplices.',
+    example:'Like flipping through a photo album at speed — spot a blurry photo, hit a button, machine rewinds right to it, you rip it out and tape the album back together.' },
+  dfq:   { name:'DFQ1300C3-3 — Slitter', role:'Advanced Slitter (Primary)', stage:'slitting', pos:[8,0,0], size:[3.5,2.5,2.5], flows:['sleeve','bopp'],
+    desc:'Takes a wide printed roll (the "mother roll") and slices it lengthwise into multiple narrow rolls. Computer-controlled with touchscreen, remembers settings for 50 materials.',
+    example:'A 1,300mm roll with 6 label designs side by side gets cut into 6 narrow rolls — each exactly the right width for one label. Cuts so clean you can\'t feel the edge.' },
+  wfq:   { name:'WFQ-1000/1300 — Slitter', role:'Slitter (Secondary)', stage:'slitting', pos:[8,0,8], size:[3,2.2,2], flows:['sleeve','bopp'], notInProduction:true,
+    desc:'Secondary slitting machine. Same job as DFQ but simpler controls. Runs alongside DFQ for extra capacity, or handles materials that don\'t need advanced tension control.',
+    example:'If the DFQ is the precision surgeon, this is the reliable workhorse — handles standard BOPP label rolls at up to 160 m/min without fuss.' },
+  gshz:  { name:'GSHZ-250 — Seamer', role:'Center-Seal Gluing Machine', stage:'seaming', pos:[20,0,-5], size:[3.5,2.2,2], flows:['sleeve'],
+    desc:'Makes shrink sleeves possible. Takes flat narrow printed film and glues one edge over the other to form a continuous tube, wound back onto a roll. Customer later cuts tubes and heat-shrinks them onto bottles.',
+    example:'Taking a flat strip of gift wrap and rolling it into a tube, gluing the overlap shut — at 300 meters per minute. The tube becomes the sleeve on a juice or water bottle.' },
+  ztm2:  { name:'ZTM-E1300 (2nd) — Quality Check', role:'Final Sleeve Inspection', stage:'inspection', pos:[30,0,-5], size:[3.5,2.5,2.5], flows:['sleeve'],
+    desc:'Same inspection machine, second use. After film is glued into a tube, it passes through again to check the seam (glue line) is straight, strong, and defect-free before shipping.',
+    example:'Proofreading twice — first after writing (print check), then after formatting (seam check). Catches crooked glue lines or weak bonds.' },
+  comp:  { name:'Lupamat — Air Compressor', role:'Compressed Air Supply', stage:'utility', pos:[-20,0,-10], size:[2.5,2,2], flows:['sleeve','bopp'],
+    desc:'Not a production machine — it\'s utility. Generates compressed air piped to every machine. Powers pneumatic cylinders that clamp rolls, lift rollers, press cylinders, and operate valves.',
+    example:'The factory\'s lungs. Without it, nothing grips, clamps, or moves. Every "psshh" sound on the floor is compressed air from this machine.' },
+  polar: { name:'Polar Mohr 76 — Cutter', role:'Guillotine Cutter (Idle)', stage:'idle', pos:[-10,0,-12], size:[2,2,1.5], flows:[],
+    desc:'German-made precision guillotine. Cuts stacks of flat sheets to exact sizes. Currently idle because products ship as rolls, not cut sheets.',
+    example:'An industrial paper cutter — programmable, cuts through a thick stack in one chop. If the factory sold pre-cut sticker sheets, this would do it.' },
+  qd300: { name:'QD-300 — Cross Cutter', role:'Cross Cutter (Idle)', stage:'idle', pos:[-6,0,-12], size:[1.8,1.5,1.5], flows:[],
+    desc:'Takes a continuous roll and cuts crosswise into individual pieces of set length. Tracks printed marks to cut at exactly the right spot. Optional perforation and heat-seal.',
+    example:'Automated scissors cutting a ribbon into exact 100mm pieces at high speed — each cut lands precisely on the printed line. Good for samples, tags, or tamper bands.' },
+  ozm:   { name:'OZM-55 LS — Bag Maker', role:'Bag Machine (Idle)', stage:'idle', pos:[-2,0,-12], size:[3,1.8,1.5], flows:[],
+    desc:'Completely different product line. Takes plastic film and turns it into sealed bags — cuts film, seals the bottom, stacks finished bags automatically.',
+    example:'Makes those clear plastic bags herbs or candy come in — up to 300/minute. If the factory diversified into food packaging, this is ready to go.' },
+  lam:   { name:'Laminator — Film Bonder', role:'Laminating Machine (Idle)', stage:'idle', pos:[3,0,-12], size:[2.5,1.8,1.8], flows:[],
+    desc:'Bonds two or more film layers into one structure. Could combine printed layer with protective or metallic barrier. Owner confirmed on-site but no manual found.',
+    example:'Like laminating a document but at industrial scale with film rolls. Would let the factory produce chip bags or coffee pouches — the biggest untapped growth opportunity.' },
+};
+
+/* ─────────── Build machines ─────────── */
+const machineGroups = {};
+const machineBoxes = {}; // for raycasting
+const allMachineMeshes = [];
+
+function createMachine(id, data) {
+  const group = new THREE.Group();
+  const [w, h, d] = data.size;
+  const color = COLORS[data.stage];
+
+  // Main body
+  const bodyGeo = new THREE.BoxGeometry(w, h, d);
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: color,
+    roughness: 0.4,
+    metalness: 0.6,
+    transparent: true,
+    opacity: 0.85,
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = h / 2;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  group.add(body);
+
+  // Glowing edges
+  const edgeGeo = new THREE.EdgesGeometry(bodyGeo);
+  const edgeMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.4 });
+  const edges = new THREE.LineSegments(edgeGeo, edgeMat);
+  edges.position.y = h / 2;
+  group.add(edges);
+
+  // Top accent light bar
+  const accentGeo = new THREE.BoxGeometry(w * 0.8, 0.08, 0.15);
+  const accentMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 2, roughness: 0.2 });
+  const accent = new THREE.Mesh(accentGeo, accentMat);
+  accent.position.set(0, h + 0.05, d / 2 - 0.15);
+  group.add(accent);
+
+  // Point light glow
+  const pLight = new THREE.PointLight(color, 0.5, 8);
+  pLight.position.set(0, h + 1, 0);
+  group.add(pLight);
+
+  // Rollers (for printing/slitting/seaming/inspection)
+  if (['printing','slitting','seaming','inspection'].includes(data.stage)) {
+    const rollerCount = data.stage === 'printing' ? 6 : 3;
+    for (let i = 0; i < rollerCount; i++) {
+      const rGeo = new THREE.CylinderGeometry(0.15, 0.15, d * 0.9, 12);
+      const rMat = new THREE.MeshStandardMaterial({ color: COLORS.metal, roughness: 0.2, metalness: 0.9 });
+      const roller = new THREE.Mesh(rGeo, rMat);
+      roller.rotation.x = Math.PI / 2;
+      const xSpread = w * 0.7;
+      roller.position.set(-xSpread/2 + i * (xSpread / (rollerCount - 1)), h * 0.7, 0);
+      roller.castShadow = true;
+      group.add(roller);
+    }
+  }
+
+  // Base platform
+  const baseGeo = new THREE.BoxGeometry(w + 0.4, 0.15, d + 0.4);
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0x222233, roughness: 0.8, metalness: 0.3 });
+  const base = new THREE.Mesh(baseGeo, baseMat);
+  base.position.y = 0.075;
+  base.receiveShadow = true;
+  group.add(base);
+
+  // Film roll on input side (printing machines)
+  if (data.stage === 'printing') {
+    const rollGeo = new THREE.CylinderGeometry(0.8, 0.8, d * 0.7, 24);
+    const rollMat = new THREE.MeshStandardMaterial({ color: 0xddddee, roughness: 0.3, metalness: 0.2 });
+    const roll = new THREE.Mesh(rollGeo, rollMat);
+    roll.rotation.x = Math.PI / 2;
+    roll.position.set(-w/2 - 1.2, 1.2, 0);
+    roll.castShadow = true;
+    group.add(roll);
+    // Roll core
+    const coreGeo = new THREE.CylinderGeometry(0.15, 0.15, d * 0.72, 12);
+    const coreMat = new THREE.MeshStandardMaterial({ color: 0x665533, roughness: 0.6 });
+    const core = new THREE.Mesh(coreGeo, coreMat);
+    core.rotation.x = Math.PI / 2;
+    core.position.set(-w/2 - 1.2, 1.2, 0);
+    group.add(core);
+  }
+
+  // Output roll (slitting, seaming)
+  if (data.stage === 'slitting' || data.stage === 'seaming') {
+    for (let i = 0; i < (data.stage === 'slitting' ? 3 : 1); i++) {
+      const rr = data.stage === 'slitting' ? 0.4 : 0.7;
+      const rollGeo = new THREE.CylinderGeometry(rr, rr, 0.6, 16);
+      const rollMat = new THREE.MeshStandardMaterial({ color: 0xccccdd, roughness: 0.3 });
+      const roll = new THREE.Mesh(rollGeo, rollMat);
+      roll.rotation.x = Math.PI / 2;
+      roll.position.set(w/2 + 1 + i * 0.8, 0.8, 0);
+      roll.castShadow = true;
+      group.add(roll);
+    }
+  }
+
+  // Dim machines not in current production
+  if (data.notInProduction) {
+    bodyMat.opacity = 0.4;
+    edgeMat.opacity = 0.15;
+    accentMat.emissiveIntensity = 0.4;
+    pLight.intensity = 0.15;
+  }
+
+  group.position.set(data.pos[0], data.pos[1], data.pos[2]);
+  group.userData = { id, ...data, bodyMesh: body, edgeMesh: edges, accentMesh: accent, pointLight: pLight };
+  scene.add(group);
+  machineGroups[id] = group;
+
+  // Invisible box for raycasting
+  const hitGeo = new THREE.BoxGeometry(w + 1, h + 1, d + 1);
+  const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+  const hitBox = new THREE.Mesh(hitGeo, hitMat);
+  hitBox.position.set(data.pos[0], h/2, data.pos[2]);
+  hitBox.userData = { id };
+  scene.add(hitBox);
+  machineBoxes[id] = hitBox;
+  allMachineMeshes.push(hitBox);
+}
+
+for (const [id, data] of Object.entries(MACHINES)) {
+  createMachine(id, data);
+}
+
+/* ─────────── Labels (sprite-based) ─────────── */
+function createLabel(text, position, color = '#ffffff', size = 0.5) {
+  const cnv = document.createElement('canvas');
+  const ctx = cnv.getContext('2d');
+  cnv.width = 512;
+  cnv.height = 64;
+  ctx.fillStyle = 'transparent';
+  ctx.fillRect(0, 0, 512, 64);
+  ctx.font = 'bold 36px -apple-system, sans-serif';
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.fillText(text, 256, 44);
+
+  const texture = new THREE.CanvasTexture(cnv);
+  texture.minFilter = THREE.LinearFilter;
+  const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.position.set(position[0], position[1], position[2]);
+  sprite.scale.set(size * 8, size, 1);
+  scene.add(sprite);
+  return sprite;
+}
+
+// Machine labels
+{
+  const L = T[getLang()];
+  for (const [id, data] of Object.entries(MACHINES)) {
+    const h = data.size[1];
+    const col = '#' + COLORS[data.stage].toString(16).padStart(6, '0');
+    // Build translated name: model number + translated label
+    const mLang = L.machines[id];
+    const modelNum = data.name.split(' — ')[0]; // e.g. "YAD-K8800"
+    const labelTxt = mLang ? mLang.label : (data.name.split(' — ')[1] || '');
+    const displayName = labelTxt ? (modelNum + ' — ' + labelTxt) : modelNum;
+    createLabel(displayName, [data.pos[0], h + 1.5, data.pos[2]], col, 0.45);
+    if (data.notInProduction) {
+      createLabel(L.notInProduction, [data.pos[0], h + 0.8, data.pos[2]], '#ef4444', 0.42);
+    }
+  }
+}
+
+// Stage zone labels
+{
+  const L = T[getLang()];
+  createLabel(L.stagePrinting, [-16, 5.5, 4], '#22c55e44', 0.6);
+  createLabel(L.stageInspection, [-4, 5, 4], '#eab30844', 0.6);
+  createLabel(L.stageSlitting, [8, 5, 4], '#f9731644', 0.6);
+  createLabel(L.stageSeaming, [20, 4.5, -3], '#ec489944', 0.5);
+  createLabel(L.stageFinalCheck, [30, 5, -3], '#eab30844', 0.5);
+  createLabel(L.stageIdleZone, [-4, 3.5, -14], '#ef444444', 0.5);
+}
+
+/* ─────────── Conveyor paths ─────────── */
+function createConveyor(points, color, opacity = 0.3) {
+  const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(...p)));
+  const tubeGeo = new THREE.TubeGeometry(curve, 64, 0.06, 8, false);
+  const tubeMat = new THREE.MeshStandardMaterial({
+    color, emissive: color, emissiveIntensity: 0.5,
+    transparent: true, opacity, roughness: 0.3, metalness: 0.5,
+  });
+  const tube = new THREE.Mesh(tubeGeo, tubeMat);
+  tube.position.y = 0.3;
+  scene.add(tube);
+  return { curve, mesh: tube };
+}
+
+// Shared path: Print → Inspect → Slit
+const sharedPath = [
+  [-22, 1.5, 0],   // raw material entry
+  [-19, 1.5, 0],   // into printer
+  [-13, 1.5, 0],   // out of printer
+  [-8, 1.5, 0],
+  [-4, 1.5, 0],    // inspection
+  [0, 1.5, 0],
+  [4, 1.5, 0],
+  [8, 1.5, 0],     // slitting
+  [12, 1.5, 0],    // out of slitter
+];
+
+// Sleeve path: Slit → Seam → Final → Ship
+const sleevePathPoints = [
+  [12, 1.5, 0],
+  [14, 1.5, -1],
+  [16, 1.5, -3],
+  [18, 1.5, -5],
+  [20, 1.5, -5],   // seaming
+  [24, 1.5, -5],
+  [28, 1.5, -5],
+  [30, 1.5, -5],   // final inspect
+  [34, 1.5, -5],
+  [38, 1.5, -5],   // ship
+];
+
+// BOPP path: Slit → Ship
+const boppPathPoints = [
+  [12, 1.5, 0],
+  [14, 1.5, 1],
+  [16, 1.5, 3],
+  [20, 1.5, 5],
+  [26, 1.5, 5],
+  [32, 1.5, 5],
+  [38, 1.5, 5],    // ship
+];
+
+const sharedConveyor = createConveyor(sharedPath, 0xffffff, 0.15);
+const sleeveConveyor = createConveyor(sleevePathPoints, COLORS.sleeve, 0.25);
+const boppConveyor = createConveyor(boppPathPoints, COLORS.bopp, 0.25);
+
+// Destination markers
+function createShipMarker(pos, label, color) {
+  const geo = new THREE.BoxGeometry(2, 1.5, 1.5);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x222233, roughness: 0.6, metalness: 0.3 });
+  const box = new THREE.Mesh(geo, mat);
+  box.position.set(...pos);
+  box.position.y = 0.75;
+  box.castShadow = true;
+  scene.add(box);
+
+  // Arrow
+  const arrGeo = new THREE.ConeGeometry(0.4, 0.8, 4);
+  const arrMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1 });
+  const arrow = new THREE.Mesh(arrGeo, arrMat);
+  arrow.position.set(pos[0], 2.2, pos[2]);
+  arrow.rotation.z = -Math.PI / 2;
+  scene.add(arrow);
+
+  createLabel(label, [pos[0], 3, pos[2]], '#' + color.toString(16).padStart(6,'0'), 0.4);
+}
+
+{
+  const L = T[getLang()];
+  createShipMarker([38, 0, -5], L.shipSleeves, COLORS.sleeve);
+  createShipMarker([38, 0, 5], L.shipBopp, COLORS.bopp);
+  // Raw material entry
+  createLabel(L.rawFilmIn, [-24, 2.5, 0], '#ffffff44', 0.4);
+}
+const entryGeo = new THREE.CylinderGeometry(1, 1, 2.5, 24);
+const entryMat = new THREE.MeshStandardMaterial({ color: 0xddddee, roughness: 0.3 });
+const entryRoll = new THREE.Mesh(entryGeo, entryMat);
+entryRoll.rotation.x = Math.PI / 2;
+entryRoll.position.set(-24, 1.2, 0);
+entryRoll.castShadow = true;
+scene.add(entryRoll);
+
+/* ─────────── Animated particles (material flow) ─────────── */
+class FlowParticle {
+  constructor(curve, color, speed, offset, flowType) {
+    const geo = new THREE.SphereGeometry(0.18, 8, 8);
+    const mat = new THREE.MeshStandardMaterial({
+      color, emissive: color, emissiveIntensity: 2,
+      transparent: true, opacity: 0.9,
+    });
+    this.mesh = new THREE.Mesh(geo, mat);
+    this.mesh.castShadow = false;
+
+    // Trail
+    this.trail = new THREE.PointLight(color, 0.4, 3);
+    this.mesh.add(this.trail);
+
+    scene.add(this.mesh);
+    this.curve = curve;
+    this.speed = speed;
+    this.t = offset;
+    this.flowType = flowType;
+    this.active = true;
+  }
+
+  update(dt) {
+    if (!this.active) { this.mesh.visible = false; return; }
+    this.mesh.visible = true;
+    this.t += dt * this.speed * 0.03;
+    if (this.t > 1) this.t -= 1;
+    const pos = this.curve.getPointAt(this.t);
+    this.mesh.position.copy(pos);
+    this.mesh.position.y += 0.3;
+  }
+}
+
+const particles = [];
+
+// Shared path particles (white/grey)
+for (let i = 0; i < 8; i++) {
+  particles.push(new FlowParticle(sharedConveyor.curve, 0xcccccc, 0.8 + Math.random() * 0.3, i / 8, 'shared'));
+}
+// Sleeve particles
+for (let i = 0; i < 5; i++) {
+  particles.push(new FlowParticle(sleeveConveyor.curve, COLORS.sleeve, 0.7 + Math.random() * 0.3, i / 5, 'sleeve'));
+}
+// BOPP particles
+for (let i = 0; i < 5; i++) {
+  particles.push(new FlowParticle(boppConveyor.curve, COLORS.bopp, 0.7 + Math.random() * 0.3, i / 5, 'bopp'));
+}
+
+/* ─────────── Compressed air pipes ─────────── */
+function createPipe(from, to) {
+  const pts = [new THREE.Vector3(...from), new THREE.Vector3(...to)];
+  const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 8, 0.04, 6, false);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x334455, transparent: true, opacity: 0.3, roughness: 0.5 });
+  const pipe = new THREE.Mesh(geo, mat);
+  scene.add(pipe);
+}
+
+createPipe([-20, 1, -10], [-20, 1, -2]);
+createPipe([-20, 1, -2], [-16, 1, 0]);
+createPipe([-20, 1, -2], [-4, 1, 0]);
+createPipe([-20, 1, -2], [8, 1, 0]);
+createPipe([-20, 1, -2], [20, 1, -5]);
+
+/* ─────────── Read more content (per machine) ─────────── */
+const READMORE = {
+  comp: {
+    title: 'Lupamat — Mi-series Screw Air Compressor',
+    html: `
+      <p>This is <strong>plant utility equipment</strong>, not a label-converting machine. It supplies compressed air to pneumatic cylinders (air-driven pistons), valves, and air shafts — for example, the air systems that lift rollers, clamp cores, or press cylinders down onto the film.</p>
+      <div class="rm-highlight">The manual is for <strong>Mi-series compressors, 400V/50Hz</strong>, with maximum operating pressure options of <strong>7.5 / 10 / 13 / 15 bar</strong> depending on the exact installed model. Power range: <strong>37–160 kW</strong>.</div>
+      <p>Without this machine, nothing on the factory floor grips, clamps, or moves. Every pneumatic action — roll clamping, tension control, roller lifting — depends on the compressed air it generates.</p>
+    `
+  },
+  gshz: {
+    title: 'GSHZ-250 — High-Speed Gluing Center-Seal & Gusset Machine',
+    html: `
+      <p>This is the <strong>key machine for shrink sleeves</strong>. "Center-seal" means gluing a flat strip into a tube. It is explicitly described as a machine for <strong>PVC</strong> (polyvinyl chloride plastic film) and <strong>PET</strong> (polyethylene terephthalate plastic film), gluing and forming them into reel-type tubular packaging material — in simple words, it turns a flat printed strip into a sleeve tube.</p>
+      <div class="rm-highlight">
+        <strong>Key specs from the manual:</strong><br>
+        600 mm effective unwind width &middot; 500 mm max unwind diameter &middot; 700 mm max rewind diameter<br>
+        <strong>300 m/min</strong> max line speed &middot; 330 m/min machine speed &middot; 3.5 kW total power
+      </div>
+      <p>Make: not clearly shown in the extracted English pages.</p>
+    `
+  },
+  ztm: {
+    title: 'ZTM-E1300 — High Speed Computer Controlled Inspection Machine',
+    html: `
+      <p>This is your <strong>quality-control and salvage machine</strong>. "Inspection/rewind" means checking a roll for defects while rewinding it.</p>
+      <p>It lets an operator run a printed roll, find defects, memorize the bad position, slow down, reverse back, pull out the bad section, resplice the film, and rewind a cleaner finished roll — for example, removing a bad print repeat before shipping the roll to a bottle-filling customer.</p>
+      <div class="rm-highlight">
+        <strong>Features from the manual:</strong>
+        <ul style="margin:0.5rem 0 0 1rem;">
+          <li>Speed setting with S-curve acceleration/deceleration</li>
+          <li>Automatic stop at set rewind length or diameter</li>
+          <li>Automatic stop at minimum unwind diameter</li>
+          <li>Cone-shaped tension curves</li>
+          <li>Meter counting, inspection and rewind modes</li>
+          <li>Memory-return-to-defect functions</li>
+          <li>Storage of <strong>50 material parameter groups</strong></li>
+        </ul>
+      </div>
+      <p>Make: not clearly shown in the extracted pages.</p>
+    `
+  },
+  ztm2: {
+    title: 'ZTM-E1300 (2nd Unit) — Final Sleeve Inspection',
+    html: `
+      <p>This is the <strong>same inspection machine model as the first ZTM-E1300</strong>, used at a different point in the production line — specifically for the <strong>final sleeve inspection</strong> after the seaming (tube-forming) step.</p>
+      <p>After film is glued into a tube by the GSHZ-250, it passes through this machine to check that the seam (glue line) is straight, strong, and defect-free before shipping.</p>
+      <div class="rm-highlight">
+        <strong>Why inspect twice?</strong><br>
+        First inspection (after printing): catches print defects — smudges, color shifts, registration errors.<br>
+        Second inspection (after seaming): catches seam defects — crooked glue lines, weak bonds, tube alignment issues.
+      </div>
+      <p>Same capabilities as the first unit: S-curve acceleration, memory-return-to-defect, 50 material parameter groups, automatic stop functions.</p>
+    `
+  },
+  dfq: {
+    title: 'Wity Machinery — DFQ1300C3-3 Computer Control High Speed Slitting Machine',
+    html: `
+      <p>This is a <strong>more advanced slitter</strong> than the WFQ. "Slitting" means cutting one wide roll into narrower rolls. In practical terms, it is built for better control on thin, sensitive film — for example, when you need a narrow sleeve lane or <strong>BOPP</strong> (biaxially oriented polypropylene plastic film) label roll to rewind cleanly without wrinkling.</p>
+      <div class="rm-highlight">
+        <strong>Features from the manual:</strong>
+        <ul style="margin:0.5rem 0 0 1rem;">
+          <li><strong>PLC control</strong> (industrial computer control)</li>
+          <li>Automatic length and diameter stop</li>
+          <li><strong>Taper tension control</strong> (tension changes automatically as the roll gets bigger)</li>
+          <li>Upper and lower rewind shafts</li>
+          <li>Analog web guiding (automatic side-to-side alignment)</li>
+          <li>Waste-edge handling</li>
+          <li>Both round and razor blade slitting devices</li>
+        </ul>
+      </div>
+      <p>The extracted pages do not show a clean rated max speed line, so the nameplate/spec plate on the machine itself should be confirmed.</p>
+    `
+  },
+  wfq: {
+    title: 'WITY Machinery — WFQ1000/WFQ1300 Microcomputer Automatic Slitting Machine',
+    html: `
+      <p>This is a <strong>finishing machine</strong>, not a printing machine. "Slitting" means cutting one wide roll into narrower rolls. It takes a big printed roll and cuts it into smaller finished rolls — for example, turning one wide <strong>BOPP</strong> (biaxially oriented polypropylene plastic film) roll into many narrow bottle-label rolls for different SKUs.</p>
+      <div class="rm-highlight">
+        <strong>Key specs from the manual:</strong><br>
+        Max widths: <strong>1100 mm (WFQ1000) / 1400 mm (WFQ1300)</strong><br>
+        Unwind diameter: up to 600 mm &middot; Rewind diameter: up to 420 mm<br>
+        Slit widths: from 20 mm upward &middot; Speed: up to <strong>160 m/min</strong><br>
+        Materials: plastic film, paper, and cellophane
+      </div>
+      <p>The manual also says straight blades are for film and optional round blades are for harder materials like paper and aluminum foil.</p>
+    `
+  },
+  yad: {
+    title: 'WITY / Jinghua — YAD-K8800 High Speed Auto Register Gravure Printing Machine',
+    html: `
+      <p><strong>Exact manual name:</strong> "MODEL YAD-8800K HIGH SPEED AUTO REGISTER GRAVURE PRINTING MACHINE"</p>
+      <p>This appears to be a <strong>newer and much more capable press</strong> than the YA800 manual family. "Auto register" means automatic color-to-color alignment. In plain language, it is a faster version of the film-printing machine, built for better color alignment and wider flexible-packaging work — for example, not just bottle-label film, but also printed packaging film for herbs, snacks, or sachets.</p>
+      <div class="rm-highlight">
+        <strong>Key specs from the manual:</strong><br>
+        Print width: <strong>800 mm</strong> &middot; Overprint precision: <strong>&plusmn;0.12 mm</strong><br>
+        Speed: <strong>50–150 m/min</strong> &middot; Roll diameter: 600 mm &middot; Core: 76 mm<br>
+        Materials: OPP, BOPP, CPP, PET, PA, cellophane, PVC, PO, PVDC and composite films up to <strong>150 g/m&sup2;</strong>
+      </div>
+      <p>The manual also mentions an inspection unit, color register control, eight printing-unit operation boxes, A/B shaft change, and automatic receiving of finished rolls.</p>
+      <div class="rm-conclusion">Please verify on the shop floor whether this press is actually installed and active.</div>
+    `
+  },
+  ya800: {
+    title: 'WITY Machinery — YA800 Gravure Printing Machine',
+    html: `
+      <p><strong>Exact manual family name:</strong> "MODEL YA 600/800/1100 GRAVURE PRINTING MACHINE"<br>
+      <strong>Likely installed model:</strong> YA800, based on the file/manual family and the separate YA800 route drawing.</p>
+      <p>"Gravure" means printing from engraved metal cylinders. This is the <strong>main printing press</strong>. It is the machine that puts the artwork, colors, logos, and text onto a plastic film roll — for example, printing the juice bottle shrink-sleeve design before the film is cut and formed.</p>
+      <div class="rm-highlight">
+        <strong>Key specs from the manual:</strong><br>
+        Print width: <strong>800 mm</strong> &middot; Colors: <strong>1 to 10</strong> configurable<br>
+        Speed: <strong>10–60 m/min</strong> &middot; Cylinder diameter: 80–270 mm<br>
+        Materials: PE (polyethylene), PP (polypropylene), polyester, and aluminum foil
+      </div>
+    `
+  },
+  qd300: {
+    title: 'WITY Machinery — QD-300 Microcomputer Controlled Automatic Cutting Machine',
+    html: `
+      <p>"Cross cutter" means cutting a moving roll into short pieces of fixed length. This is an <strong>off-line cutter</strong>, not part of the standard shrink-sleeve or BOPP wrap-around label flow.</p>
+      <p>It can track a print mark and cut roll-fed material to length — for example, making short sample pieces, tags, coupon-like inserts, or small label strips.</p>
+      <div class="rm-highlight">
+        <strong>Key specs from the manual:</strong><br>
+        Effective width: <strong>300 mm</strong> &middot; Cut length: 0–999 mm<br>
+        Position accuracy: <strong>&plusmn;0.2 mm</strong>
+      </div>
+      <p>The manual also says that if equipped with heating it can do <strong>perforation</strong> (small tear lines) and <strong>heat-sealing bag work</strong>.</p>
+    `
+  },
+  ozm: {
+    title: 'OZM-55 LS — Deep Dive',
+    html: `
+      <p>The most accurate way to describe the <strong>Oz-Mak OZM-55 LS</strong> is this: it is a <strong>bag cutting-and-sealing machine</strong> (a machine that feeds plastic film from a roll, seals the film with heat, cuts it to length, and then outputs finished pieces). The manual itself calls it a "bag cutting machine," but it also lists an upper clamp heater and lower clamp heater, which a pure cut-only machine would not need.</p>
+      <div class="rm-highlight">What changed my view is the clamp section in the manual. It says the clamp group is the group <em>"where the bag is formed from cut and welded film,"</em> which means the machine is not only chopping plastic into lengths — it is also designed to <strong>weld / seal</strong> (join the plastic layers together with heat) as part of making the bag.</div>
+      <p>The manual then gets even more explicit. The lower clamp section says welding happens through temperature control and silicone support, and it discusses heater elements, thermocouples (temperature sensors), and seal quality. The upper clamp section says the bag welding is done by the pressure and temperature of the knife, with temperature controlled by a thermostat. That is clear evidence that this machine has a <strong>heat-sealing function</strong>, not just a knife.</p>
+      <p><strong>No, it is not just a simple cutting machine.</strong><br>According to the manual, it can do at least these things:</p>
+      <ul>
+        <li><strong>Feed film accurately</strong> using a servo motor (a precision motor that moves exact lengths of material).</li>
+        <li><strong>Seal / weld the film</strong> with heated clamps (join plastic layers together using heat and pressure).</li>
+        <li><strong>Cut the film</strong> with the knife in the clamp section.</li>
+        <li><strong>Handle printed film</strong> using a photo-eye / photocell (a sensor that reads a printed mark so the cut lands in the correct place).</li>
+        <li><strong>Output finished bags</strong> to a conveyor and stack them. The machine can count bags and count groups / stacks.</li>
+      </ul>
+      <p>That said, operators may describe a machine by the one thing they see it doing most visibly. If the heaters and clamp section are active, it is also doing the cross-seal (a horizontal heat-weld across the film that closes one bag and forms the next one).</p>
+      <div class="rm-conclusion">
+        <strong>Best description:</strong><br>
+        OZM-55 LS = <strong>simple bag cutting + cross-sealing machine</strong><br>
+        Not a "basic knife-only cutter," and also not a "full modern pouch-making line."
+      </div>
+      <p><strong>Practical business conclusion:</strong></p>
+      <ul>
+        <li>If they use it with heaters off, it functions as a <strong>cut-to-length machine</strong>.</li>
+        <li>If the clamp heaters are active, it functions as a <strong>simple bag-finishing machine</strong>.</li>
+      </ul>
+      <p>The manual shows the machine can work with printed bags using the photo-eye, so it is not limited to plain unprinted cutting.</p>
+    `
+  },
+  polar: {
+    title: 'Polar Mohr 76 — Guillotine Cutter',
+    html: `
+      <p>A <strong>German-made precision guillotine</strong>. Cuts stacks of flat sheets to exact sizes. Currently idle because products ship as rolls, not cut sheets.</p>
+      <div class="rm-highlight">If the factory ever sold pre-cut sticker sheets, individual label cards, or any flat-sheet product, this programmable cutter could handle it — cutting through thick stacks in one chop with high precision.</div>
+      <p>No manual analysis was extracted for this machine beyond confirming its presence on the factory floor.</p>
+    `
+  },
+  lam: {
+    title: 'Laminator — Film Bonder',
+    html: `
+      <p>Bonds two or more film layers into one structure. Could combine a printed layer with a protective or metallic barrier film.</p>
+      <div class="rm-highlight">Owner confirmed this machine is on-site but <strong>no manual was found</strong>. This is potentially the <strong>biggest untapped growth opportunity</strong> — with lamination capability, the factory could produce chip bags, coffee pouches, and other multi-layer flexible packaging.</div>
+      <p>Further investigation is needed to determine the exact make, model, and capabilities of this machine.</p>
+    `
+  },
+};
+let readmoreMachineId = null;
+
+/* ─────────── Raycaster for hover ─────────── */
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hoveredId = null;
+const infoPanel = document.getElementById('infoPanel');
+let hideTimeout = null;
+let panelHovered = false;
+
+// Keep panel alive when mouse is over it (so compare button is clickable)
+infoPanel.addEventListener('mouseenter', () => {
+  panelHovered = true;
+  if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+});
+infoPanel.addEventListener('mouseleave', () => {
+  panelHovered = false;
+  scheduleHide();
+});
+
+function scheduleHide() {
+  if (hideTimeout) return;
+  hideTimeout = setTimeout(() => {
+    hideTimeout = null;
+    if (!panelHovered) {
+      if (hoveredId && machineGroups[hoveredId]) {
+        machineGroups[hoveredId].userData.bodyMesh.material.emissive = new THREE.Color(0x000000);
+      }
+      hoveredId = null;
+      infoPanel.classList.remove('visible');
+    }
+  }, 400);
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
+function updateHover() {
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(allMachineMeshes);
+
+  if (hits.length > 0) {
+    // Cancel any pending hide
+    if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+
+    const id = hits[0].object.userData.id;
+    if (id !== hoveredId) {
+      // Reset old
+      if (hoveredId && machineGroups[hoveredId]) {
+        const old = machineGroups[hoveredId].userData;
+        old.bodyMesh.material.emissive = new THREE.Color(0x000000);
+        old.bodyMesh.scale.set(1, 1, 1);
+      }
+      // Highlight new
+      hoveredId = id;
+      const grp = machineGroups[id];
+      const ud = grp.userData;
+      ud.bodyMesh.material.emissive = new THREE.Color(COLORS[ud.stage]);
+      ud.bodyMesh.material.emissiveIntensity = 0.3;
+
+      const L = T[getLang()];
+      const mLang = L.machines[id];
+      // Translate the function part of the name
+      const modelNum = ud.name.split(' — ')[0];
+      const labelTxt = mLang ? mLang.label : (ud.name.split(' — ')[1] || '');
+      document.getElementById('ipName').textContent = labelTxt ? (modelNum + ' — ' + labelTxt) : modelNum;
+      document.getElementById('ipRole').textContent = mLang ? mLang.role : ud.role;
+      document.getElementById('ipDesc').textContent = mLang ? mLang.desc : ud.desc;
+      document.getElementById('ipExample').innerHTML = '<strong>' + L.example + '</strong> ' + (mLang ? mLang.example : ud.example);
+
+      // Show compare button only for the two printing presses
+      const compareBtn = document.getElementById('ipCompareBtn');
+      if (id === 'yad') {
+        compareBtn.textContent = 'vs YA800';
+        compareBtn.classList.add('visible');
+      } else if (id === 'ya800') {
+        compareBtn.textContent = 'vs YAD-K8800';
+        compareBtn.classList.add('visible');
+      } else {
+        compareBtn.classList.remove('visible');
+      }
+
+      // Show read more button for machines with detailed content
+      const readmoreBtn = document.getElementById('ipReadmoreBtn');
+      readmoreBtn.textContent = L.readMore;
+      if (READMORE[id]) {
+        readmoreBtn.classList.add('visible');
+        readmoreMachineId = id;
+      } else {
+        readmoreBtn.classList.remove('visible');
+      }
+
+      infoPanel.classList.add('visible');
+    }
+  } else {
+    // Mouse left the machine — only hide if not hovering the panel
+    if (!panelHovered) {
+      scheduleHide();
+    }
+  }
+}
+
+/* ─────────── View switching ─────────── */
+let currentView = 'all';
+
+window.setView = function(view) {
+  currentView = view;
+  document.getElementById('btnAll').className = 'btn' + (view === 'all' ? ' active' : '');
+  document.getElementById('btnSleeve').className = 'btn' + (view === 'sleeve' ? ' active-sleeve' : '');
+  document.getElementById('btnBopp').className = 'btn' + (view === 'bopp' ? ' active-bopp' : '');
+
+  for (const [id, grp] of Object.entries(machineGroups)) {
+    const data = grp.userData;
+    const inFlow = view === 'all' || data.flows.includes(view) || data.flows.length === 0;
+    const targetOpacity = inFlow ? 0.85 : 0.08;
+    data.bodyMesh.material.opacity = targetOpacity;
+    data.edgeMesh.material.opacity = inFlow ? 0.4 : 0.05;
+    data.accentMesh.material.emissiveIntensity = inFlow ? 2 : 0.1;
+    data.pointLight.intensity = inFlow ? 0.5 : 0.02;
+  }
+
+  // Conveyors
+  sharedConveyor.mesh.material.opacity = (view === 'all') ? 0.15 : 0.08;
+  sleeveConveyor.mesh.material.opacity = (view === 'all' || view === 'sleeve') ? 0.25 : 0.03;
+  boppConveyor.mesh.material.opacity = (view === 'all' || view === 'bopp') ? 0.25 : 0.03;
+
+  // Particles
+  for (const p of particles) {
+    if (p.flowType === 'shared') p.active = true;
+    else if (p.flowType === 'sleeve') p.active = (view === 'all' || view === 'sleeve');
+    else if (p.flowType === 'bopp') p.active = (view === 'all' || view === 'bopp');
+  }
+};
+
+/* ─────────── Animation loop ─────────── */
+const clock = new THREE.Clock();
+const speedSlider = document.getElementById('speedSlider');
+let isPaused = false;
+let is2DMode = false;  // declared here so animate() can access it
+
+/* ─────────── WASD + Arrow key navigation ─────────── */
+const keysDown = {};
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const k = e.key.toLowerCase();
+  if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) {
+    keysDown[k] = true;
+    e.preventDefault();
+  }
+});
+document.addEventListener('keyup', (e) => {
+  keysDown[e.key.toLowerCase()] = false;
+});
+window.addEventListener('blur', () => {
+  for (const k in keysDown) keysDown[k] = false;
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  if (is2DMode) return; // skip 3D rendering when in 2D mode
+  const speed = parseFloat(speedSlider.value);
+
+  controls.update();
+
+  // WASD + Arrow key movement
+  {
+    const moveSpeed = 18 * dt;
+    const turnSpeed = 1.5 * dt;
+
+    // Forward direction projected onto ground (XZ plane)
+    const fwd = new THREE.Vector3();
+    camera.getWorldDirection(fwd);
+    fwd.y = 0;
+    fwd.normalize();
+
+    // Right vector on ground
+    const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+
+    const move = new THREE.Vector3();
+
+    // W/S — move forward/backward (camera + target together)
+    if (keysDown['w']) move.addScaledVector(fwd, moveSpeed);
+    if (keysDown['s']) move.addScaledVector(fwd, -moveSpeed);
+
+    // Arrow Left/Right — strafe
+    if (keysDown['arrowleft'])  move.addScaledVector(right, -moveSpeed);
+    if (keysDown['arrowright']) move.addScaledVector(right, moveSpeed);
+
+    // Arrow Up/Down — move up/down
+    if (keysDown['arrowup'])   move.y += moveSpeed;
+    if (keysDown['arrowdown']) move.y -= moveSpeed;
+
+    // Apply translation (move both camera and target together)
+    if (move.lengthSq() > 0) {
+      camera.position.add(move);
+      controls.target.add(move);
+    }
+
+    // A/D — turn (rotate camera around target on Y axis)
+    if (keysDown['a'] || keysDown['d']) {
+      const angle = keysDown['a'] ? turnSpeed : -turnSpeed;
+      const offset = camera.position.clone().sub(controls.target);
+      const cosA = Math.cos(angle), sinA = Math.sin(angle);
+      const nx = offset.x * cosA + offset.z * sinA;
+      const nz = -offset.x * sinA + offset.z * cosA;
+      offset.x = nx;
+      offset.z = nz;
+      camera.position.copy(controls.target).add(offset);
+    }
+  }
+
+  updateHover();
+
+  if (!isPaused) {
+    // Animate particles
+    for (const p of particles) {
+      p.update(dt * speed);
+    }
+
+    // Subtle machine breathing
+    const time = clock.elapsedTime;
+    for (const [id, grp] of Object.entries(machineGroups)) {
+      const d = grp.userData;
+      if (d.stage !== 'idle') {
+        const s = 1 + Math.sin(time * 2 + d.pos[0]) * 0.005;
+        d.accentMesh.material.emissiveIntensity = d.bodyMesh.material.opacity > 0.5 ? (1.5 + Math.sin(time * 3 + d.pos[0]) * 0.5) : 0.1;
+      }
+    }
+
+    // Rotate entry roll
+    entryRoll.rotation.z += dt * speed * 0.5;
+  }
+
+  renderer.render(scene, camera);
+}
+
+animate();
+
+/* ─────────── Play / Pause ─────────── */
+window.togglePlayPause = function() {
+  isPaused = !isPaused;
+  const btn = document.getElementById('playPauseBtn');
+  const L = T[getLang()];
+  if (isPaused) {
+    btn.innerHTML = '\u25B6 ' + L.play;
+    btn.classList.add('paused');
+  } else {
+    btn.innerHTML = '\u25FC ' + L.stop;
+    btn.classList.remove('paused');
+  }
+};
+
+/* ─────────── Comparison modal ─────────── */
+window.openComparison = function() {
+  document.getElementById('compOverlay').classList.add('visible');
+};
+
+window.closeComparison = function() {
+  document.getElementById('compOverlay').classList.remove('visible');
+};
+
+/* ─────────── Read more modal ─────────── */
+window.openReadmore = function() {
+  const id = readmoreMachineId || hoveredId;
+  const L = T[getLang()];
+  const rm = L.readmore && L.readmore[id];
+  if (!rm) {
+    // Fallback to hardcoded READMORE
+    const rmFallback = READMORE[id];
+    if (!rmFallback) return;
+    document.getElementById('rmTitle').textContent = rmFallback.title;
+    document.getElementById('rmBody').innerHTML = rmFallback.html;
+  } else {
+    document.getElementById('rmTitle').textContent = rm.title;
+    document.getElementById('rmBody').innerHTML = rm.html;
+  }
+  document.getElementById('readmoreOverlay').classList.add('visible');
+};
+
+window.closeReadmore = function() {
+  document.getElementById('readmoreOverlay').classList.remove('visible');
+};
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { window.closeComparison(); window.closeReadmore(); }
+});
+
+/* ─────────── Reset view ─────────── */
+window.resetView = function() {
+  // Smooth animate back to default position
+  const startPos = camera.position.clone();
+  const endPos = new THREE.Vector3(30, 25, 40);
+  const startTarget = controls.target.clone();
+  const endTarget = new THREE.Vector3(0, 2, 0);
+  const duration = 600;
+  const startTime = performance.now();
+
+  function animateReset(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // easeInOutQuad
+    camera.position.lerpVectors(startPos, endPos, ease);
+    controls.target.lerpVectors(startTarget, endTarget, ease);
+    controls.update();
+    renderer.render(scene, camera);
+    if (t < 1) requestAnimationFrame(animateReset);
+  }
+  requestAnimationFrame(animateReset);
+};
+
+/* ─────────── Navigation pad (pan & zoom buttons) ─────────── */
+window.navPan = function(dir) {
+  const panAmount = 5;
+  // Get camera's right and up vectors in world space
+  const right = new THREE.Vector3();
+  const up = new THREE.Vector3();
+  camera.getWorldDirection(new THREE.Vector3());
+  right.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+  up.setFromMatrixColumn(camera.matrixWorld, 1).normalize();
+
+  const delta = new THREE.Vector3();
+  if (dir === 'left')  delta.addScaledVector(right, -panAmount);
+  if (dir === 'right') delta.addScaledVector(right, panAmount);
+  if (dir === 'up')    delta.addScaledVector(up, panAmount);
+  if (dir === 'down')  delta.addScaledVector(up, -panAmount);
+
+  // Smooth animate
+  const startTarget = controls.target.clone();
+  const endTarget = controls.target.clone().add(delta);
+  const startPos = camera.position.clone();
+  const endPos = camera.position.clone().add(delta);
+  const duration = 300;
+  const startTime = performance.now();
+
+  function animateNav(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    camera.position.lerpVectors(startPos, endPos, ease);
+    controls.target.lerpVectors(startTarget, endTarget, ease);
+    controls.update();
+    if (!is2DMode) renderer.render(scene, camera);
+    if (t < 1) requestAnimationFrame(animateNav);
+  }
+  requestAnimationFrame(animateNav);
+};
+
+window.navZoom = function(dir) {
+  const zoomDir = new THREE.Vector3().subVectors(controls.target, camera.position).normalize();
+  const amount = dir > 0 ? 8 : -8;
+  const startPos = camera.position.clone();
+  const endPos = camera.position.clone().addScaledVector(zoomDir, amount);
+
+  // Don't zoom closer than minDistance or farther than maxDistance
+  const distAfter = endPos.distanceTo(controls.target);
+  if (distAfter < controls.minDistance || distAfter > controls.maxDistance) return;
+
+  const duration = 300;
+  const startTime = performance.now();
+
+  function animateZoom(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    camera.position.lerpVectors(startPos, endPos, ease);
+    controls.update();
+    if (!is2DMode) renderer.render(scene, camera);
+    if (t < 1) requestAnimationFrame(animateZoom);
+  }
+  requestAnimationFrame(animateZoom);
+};
+
+/* ─────────── Double-click to focus on a machine ─────────── */
+canvas.addEventListener('dblclick', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(allMachineMeshes);
+  if (hits.length === 0) return;
+
+  const id = hits[0].object.userData.id;
+  const data = MACHINES[id];
+  const targetPos = new THREE.Vector3(data.pos[0], data.size[1] / 2, data.pos[2]);
+
+  // Fly camera to focus on the machine
+  const startPos = camera.position.clone();
+  const startTarget = controls.target.clone();
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  const dist = Math.max(data.size[0], data.size[2]) * 3 + 5;
+  const endPos = targetPos.clone().add(dir.multiplyScalar(dist));
+  endPos.y = Math.max(endPos.y, data.size[1] + 3);
+  const duration = 700;
+  const startTime = performance.now();
+
+  function animateFocus(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    camera.position.lerpVectors(startPos, endPos, ease);
+    controls.target.lerpVectors(startTarget, targetPos, ease);
+    controls.update();
+    renderer.render(scene, camera);
+    if (t < 1) requestAnimationFrame(animateFocus);
+  }
+  requestAnimationFrame(animateFocus);
+});
+
+/* ─────────── Resize ─────────── */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  if (is2DMode) { resize2D(); draw2D(); }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   2D SCHEMATIC VIEW
+   ═══════════════════════════════════════════════════════════════ */
+const canvas2d = document.getElementById('canvas2d');
+const ctx = canvas2d.getContext('2d');
+let anim2dId = null;
+
+const COLORS_2D = {
+  printing: '#22c55e', inspection: '#eab308', slitting: '#f97316',
+  seaming: '#ec4899', utility: '#64748b', idle: '#ef4444',
+  sleeve: '#a855f7', bopp: '#38bdf8',
+};
+
+const view2d = {
+  offsetX: 7, offsetY: -2, scale: 15,
+  dragging: false, lastX: 0, lastY: 0,
+  hoverId: null,
+};
+
+/* ── Coordinate transforms ── */
+function w2s(wx, wy) {
+  const cx = canvas2d.width / (window.devicePixelRatio || 1) / 2;
+  const cy = canvas2d.height / (window.devicePixelRatio || 1) / 2;
+  return [cx + (wx - view2d.offsetX) * view2d.scale, cy + (wy - view2d.offsetY) * view2d.scale];
+}
+function s2w(sx, sy) {
+  const cx = canvas2d.width / (window.devicePixelRatio || 1) / 2;
+  const cy = canvas2d.height / (window.devicePixelRatio || 1) / 2;
+  return [(sx - cx) / view2d.scale + view2d.offsetX, (sy - cy) / view2d.scale + view2d.offsetY];
+}
+
+/* ── DPI-aware resize ── */
+function resize2D() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas2d.width = window.innerWidth * dpr;
+  canvas2d.height = window.innerHeight * dpr;
+  canvas2d.style.width = window.innerWidth + 'px';
+  canvas2d.style.height = window.innerHeight + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+/* ── Auto-fit view ── */
+function fitView2D() {
+  const pad = 80;
+  const xMin = -26, xMax = 42, yMin = -14, yMax = 10;
+  const scaleX = (window.innerWidth - pad * 2) / (xMax - xMin);
+  const scaleY = (window.innerHeight - pad * 2) / (yMax - yMin);
+  view2d.scale = Math.min(scaleX, scaleY);
+  view2d.offsetX = (xMin + xMax) / 2;
+  view2d.offsetY = (yMin + yMax) / 2;
+}
+
+/* ── Rounded rect helper ── */
+function rrect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function truncText(text, maxW) {
+  if (ctx.measureText(text).width <= maxW) return text;
+  let t = text;
+  while (t.length > 1 && ctx.measureText(t + '\u2026').width > maxW) t = t.slice(0, -1);
+  return t + '\u2026';
+}
+
+/* ── 2D flow particles ── */
+const particles2d = [];
+function initParticles2D() {
+  particles2d.length = 0;
+  const paths2d = [
+    { pts: sharedPath.map(p => [p[0], p[2]]), color: '#cccccc', count: 6, flow: 'shared' },
+    { pts: sleevePathPoints.map(p => [p[0], p[2]]), color: COLORS_2D.sleeve, count: 4, flow: 'sleeve' },
+    { pts: boppPathPoints.map(p => [p[0], p[2]]), color: COLORS_2D.bopp, count: 4, flow: 'bopp' },
+  ];
+  for (const { pts, color, count, flow } of paths2d) {
+    for (let i = 0; i < count; i++) {
+      particles2d.push({ pts, color, t: i / count, speed: 0.12 + Math.random() * 0.04, flow });
+    }
+  }
+}
+initParticles2D();
+
+function getPointOnPath(pts, t) {
+  const total = pts.length - 1;
+  const idx = Math.min(Math.floor(t * total), total - 1);
+  const frac = t * total - idx;
+  const a = pts[idx], b = pts[idx + 1];
+  return [a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac];
+}
+
+/* ── Main 2D draw ── */
+function draw2D() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  ctx.clearRect(0, 0, vw, vh);
+
+  // Background
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, vw, vh);
+
+  // Grid
+  ctx.strokeStyle = '#1a1a25';
+  ctx.lineWidth = 0.5;
+  const [gx0, gy0] = s2w(0, 0);
+  const [gx1, gy1] = s2w(vw, vh);
+  for (let x = Math.floor(gx0 / 5) * 5; x <= gx1; x += 5) {
+    const [sx] = w2s(x, 0);
+    ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, vh); ctx.stroke();
+  }
+  for (let y = Math.floor(gy0 / 5) * 5; y <= gy1; y += 5) {
+    const [, sy] = w2s(0, y);
+    ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(vw, sy); ctx.stroke();
+  }
+
+  // Stage zone labels (large, faint)
+  const L2d = T[getLang()];
+  const zones = [
+    { text: L2d.stagePrinting, x: -16, y: -3, color: COLORS_2D.printing },
+    { text: L2d.stageInspection, x: -4, y: -3, color: COLORS_2D.inspection },
+    { text: L2d.stageSlitting, x: 8, y: -3, color: COLORS_2D.slitting },
+    { text: L2d.stageSeaming, x: 20, y: -8, color: COLORS_2D.seaming },
+    { text: L2d.stageFinalCheck, x: 30, y: -8, color: COLORS_2D.inspection },
+    { text: L2d.stageIdleZone, x: -4, y: -15, color: COLORS_2D.idle },
+  ];
+  for (const z of zones) {
+    const [sx, sy] = w2s(z.x, z.y);
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = z.color;
+    ctx.font = `bold ${Math.max(10, view2d.scale * 1.2)}px -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(z.text, sx, sy);
+    ctx.restore();
+  }
+
+  // Compressed air pipes (dashed)
+  ctx.save();
+  ctx.strokeStyle = '#334455';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 4]);
+  ctx.globalAlpha = 0.4;
+  const pipes = [
+    [[-20,-10],[-20,-2]], [[-20,-2],[-16,0]], [[-20,-2],[-4,0]], [[-20,-2],[8,0]], [[-20,-2],[20,-5]]
+  ];
+  for (const [from, to] of pipes) {
+    const [sx1, sy1] = w2s(from[0], from[1]);
+    const [sx2, sy2] = w2s(to[0], to[1]);
+    ctx.beginPath(); ctx.moveTo(sx1, sy1); ctx.lineTo(sx2, sy2); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Flow paths
+  const paths = [
+    { pts: sharedPath.map(p => [p[0], p[2]]), color: '#ffffff', opacity: 0.2, width: 3 },
+    { pts: sleevePathPoints.map(p => [p[0], p[2]]), color: COLORS_2D.sleeve, opacity: 0.5, width: 2.5 },
+    { pts: boppPathPoints.map(p => [p[0], p[2]]), color: COLORS_2D.bopp, opacity: 0.5, width: 2.5 },
+  ];
+  for (const p of paths) {
+    ctx.save();
+    ctx.globalAlpha = p.opacity;
+    ctx.strokeStyle = p.color;
+    ctx.lineWidth = p.width;
+    ctx.lineJoin = 'round';
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    const [sx0, sy0] = w2s(p.pts[0][0], p.pts[0][1]);
+    ctx.moveTo(sx0, sy0);
+    for (let i = 1; i < p.pts.length; i++) {
+      const [sx, sy] = w2s(p.pts[i][0], p.pts[i][1]);
+      ctx.lineTo(sx, sy);
+    }
+    ctx.stroke();
+    // Arrowhead
+    const last = p.pts[p.pts.length - 1], prev = p.pts[p.pts.length - 2];
+    const [lx, ly] = w2s(last[0], last[1]);
+    const [px, py] = w2s(prev[0], prev[1]);
+    const ang = Math.atan2(ly - py, lx - px);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.moveTo(lx, ly);
+    ctx.lineTo(lx - 10 * Math.cos(ang - 0.35), ly - 10 * Math.sin(ang - 0.35));
+    ctx.lineTo(lx - 10 * Math.cos(ang + 0.35), ly - 10 * Math.sin(ang + 0.35));
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // Animated particles on paths (only for active flow)
+  if (!isPaused) {
+    for (const p of particles2d) {
+      if (currentView !== 'all' && p.flow !== 'shared' && p.flow !== currentView) continue;
+      const [wx, wy] = getPointOnPath(p.pts, p.t);
+      const [sx, sy] = w2s(wx, wy);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // Ship markers
+  const ships = [
+    { pos: [38, -5], label: L2d.shipSleeves, color: COLORS_2D.sleeve },
+    { pos: [38, 5], label: L2d.shipBopp, color: COLORS_2D.bopp },
+  ];
+  for (const s of ships) {
+    const [sx, sy] = w2s(s.pos[0] + 2, s.pos[1]);
+    ctx.save();
+    ctx.fillStyle = s.color;
+    ctx.globalAlpha = 0.7;
+    ctx.font = `bold ${Math.max(8, view2d.scale * 0.6)}px -apple-system, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(s.label, sx, sy + 4);
+    // Arrow
+    const [ax, ay] = w2s(s.pos[0] + 1, s.pos[1]);
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(ax + 8, ay); ctx.lineTo(ax - 4, ay - 5); ctx.lineTo(ax - 4, ay + 5);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // Raw material entry
+  const [rex, rey] = w2s(-24, 0);
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.globalAlpha = 0.3;
+  ctx.font = `bold ${Math.max(8, view2d.scale * 0.55)}px -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(L2d.rawFilmIn, rex, rey - view2d.scale * 1.5);
+  // Roll icon
+  ctx.strokeStyle = '#aaaacc';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.ellipse(rex, rey, view2d.scale * 0.7, view2d.scale * 0.5, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // Machines
+  for (const [id, data] of Object.entries(MACHINES)) {
+    const [mx, , mz] = data.pos;
+    const [mw, , md] = data.size;
+    const color = COLORS_2D[data.stage];
+    const [sx, sy] = w2s(mx, mz);
+    const sw = mw * view2d.scale;
+    const sd = md * view2d.scale;
+    const rx = sx - sw / 2, ry = sy - sd / 2;
+    const r = Math.min(6, view2d.scale * 0.3);
+    const isHov = view2d.hoverId === id;
+    const isActive = currentView === 'all' || data.flows.includes(currentView) || data.flows.length === 0;
+    const dimmed = data.notInProduction && !isHov;
+    const alpha = isActive ? (dimmed ? 0.45 : 1) : 0.15;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    rrect(rx + 2, ry + 2, sw, sd, r); ctx.fill();
+
+    // Body fill
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha * (isHov ? 0.95 : 0.7);
+    rrect(rx, ry, sw, sd, r); ctx.fill();
+
+    // Border
+    ctx.strokeStyle = isHov ? '#ffffff' : color;
+    ctx.lineWidth = isHov ? 2.5 : 1;
+    ctx.globalAlpha = alpha;
+    rrect(rx, ry, sw, sd, r); ctx.stroke();
+
+    // Left accent bar
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha;
+    ctx.fillRect(rx, ry + r, 4, sd - r * 2);
+
+    // Hover glow
+    if (isHov) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 20;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      rrect(rx, ry, sw, sd, r); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // Label
+    if (view2d.scale > 6) {
+      ctx.globalAlpha = alpha;
+      const fs = Math.max(8, Math.min(13, view2d.scale * 0.65));
+      const parts = data.name.split(' — ');
+      const modelName = parts[0];
+      const mL2d = L2d.machines[id];
+      const typeName = mL2d ? mL2d.label : (parts.length === 2 ? parts[1] : null);
+
+      ctx.font = `bold ${fs}px -apple-system, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const modelWidth = ctx.measureText(modelName).width;
+      const fitsInBox = modelWidth < (sw - 10) && sd > fs * 2.5;
+
+      if (fitsInBox) {
+        // Both lines fit inside box
+        ctx.fillStyle = '#fff';
+        if (typeName && sd > fs * 3) {
+          ctx.fillText(modelName, sx, sy - fs * 0.5);
+          ctx.fillStyle = isHov ? '#fff' : '#aaa';
+          ctx.font = `${fs * 0.85}px -apple-system, sans-serif`;
+          ctx.fillText(typeName, sx, sy + fs * 0.6);
+        } else {
+          ctx.fillText(typeName ? (modelName + ' — ' + typeName) : modelName, sx, sy);
+        }
+      } else {
+        // Text doesn't fit — type inside box, model above
+        if (typeName) {
+          const tFs = Math.max(6, Math.min(fs * 0.85, (sw - 6) / ctx.measureText(typeName).width * fs));
+          ctx.font = `${tFs}px -apple-system, sans-serif`;
+          ctx.fillStyle = isHov ? '#fff' : '#ddd';
+          ctx.fillText(truncText(typeName, sw - 6), sx, sy);
+        }
+        // Model name above box
+        const aboveFs = fs * 0.72;
+        ctx.font = `bold ${aboveFs}px -apple-system, sans-serif`;
+        ctx.fillStyle = isHov ? '#fff' : '#888';
+        ctx.textBaseline = 'bottom';
+        const maxLabelW = Math.max(sw, view2d.scale * 2.8);
+        ctx.fillText(truncText(modelName, maxLabelW), sx, ry - 3);
+      }
+    }
+
+    // "Not in Current Production" red label below box
+    if (data.notInProduction && view2d.scale > 6) {
+      const nfs = Math.max(6, Math.min(10, view2d.scale * 0.45));
+      ctx.font = `bold ${nfs}px -apple-system, sans-serif`;
+      ctx.fillStyle = '#ef4444';
+      ctx.globalAlpha = isActive ? (isHov ? 1 : 0.85) : 0.15;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(L2d.notInProduction, sx, ry + sd + 3);
+    }
+
+    ctx.restore();
+  }
+}
+
+/* ── 2D animation loop ── */
+function animate2D() {
+  if (!is2DMode) return;
+  anim2dId = requestAnimationFrame(animate2D);
+
+  // WASD + Arrow key panning in 2D
+  {
+    const panSpeed = 0.4 / view2d.scale * 16;
+    if (keysDown['w'] || keysDown['arrowup'])    view2d.offsetY -= panSpeed;
+    if (keysDown['s'] || keysDown['arrowdown'])  view2d.offsetY += panSpeed;
+    if (keysDown['a'] || keysDown['arrowleft'])  view2d.offsetX -= panSpeed;
+    if (keysDown['d'] || keysDown['arrowright']) view2d.offsetX += panSpeed;
+  }
+
+  if (!isPaused) {
+    const speed = parseFloat(speedSlider.value);
+    for (const p of particles2d) {
+      if (currentView !== 'all' && p.flow !== 'shared' && p.flow !== currentView) continue;
+      p.t += p.speed * speed * 0.01;
+      if (p.t > 1) p.t -= 1;
+    }
+  }
+  draw2D();
+}
+
+/* ── 2D mouse events ── */
+canvas2d.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const [wx, wy] = s2w(e.clientX, e.clientY);
+  view2d.scale *= e.deltaY > 0 ? 0.9 : 1.1;
+  view2d.scale = Math.max(3, Math.min(60, view2d.scale));
+  const [nwx, nwy] = s2w(e.clientX, e.clientY);
+  view2d.offsetX += wx - nwx;
+  view2d.offsetY += wy - nwy;
+}, { passive: false });
+
+canvas2d.addEventListener('mousedown', (e) => {
+  view2d.dragging = true;
+  view2d.lastX = e.clientX;
+  view2d.lastY = e.clientY;
+});
+
+canvas2d.addEventListener('mousemove', (e) => {
+  if (view2d.dragging) {
+    view2d.offsetX -= (e.clientX - view2d.lastX) / view2d.scale;
+    view2d.offsetY -= (e.clientY - view2d.lastY) / view2d.scale;
+    view2d.lastX = e.clientX;
+    view2d.lastY = e.clientY;
+  } else {
+    // Hover detection
+    const [wx, wy] = s2w(e.clientX, e.clientY);
+    let found = null;
+    for (const [id, data] of Object.entries(MACHINES)) {
+      const [mx, , mz] = data.pos;
+      const [mw, , md] = data.size;
+      if (wx >= mx - mw / 2 && wx <= mx + mw / 2 && wy >= mz - md / 2 && wy <= mz + md / 2) {
+        found = id; break;
+      }
+    }
+    if (found !== view2d.hoverId) {
+      view2d.hoverId = found;
+      if (found) {
+        const ud = MACHINES[found];
+        const L = T[getLang()];
+        const mLang = L.machines[found];
+        const modelNum2d = ud.name.split(' — ')[0];
+        const labelTxt2d = mLang ? mLang.label : (ud.name.split(' — ')[1] || '');
+        document.getElementById('ipName').textContent = labelTxt2d ? (modelNum2d + ' — ' + labelTxt2d) : modelNum2d;
+        document.getElementById('ipRole').textContent = mLang ? mLang.role : ud.role;
+        document.getElementById('ipDesc').textContent = mLang ? mLang.desc : ud.desc;
+        document.getElementById('ipExample').innerHTML = '<strong>' + L.example + '</strong> ' + (mLang ? mLang.example : ud.example);
+        const compareBtn = document.getElementById('ipCompareBtn');
+        if (found === 'yad') { compareBtn.textContent = 'vs YA800'; compareBtn.classList.add('visible'); }
+        else if (found === 'ya800') { compareBtn.textContent = 'vs YAD-K8800'; compareBtn.classList.add('visible'); }
+        else { compareBtn.classList.remove('visible'); }
+        const readmoreBtn = document.getElementById('ipReadmoreBtn');
+        readmoreBtn.textContent = L.readMore;
+        if (READMORE[found]) { readmoreBtn.classList.add('visible'); readmoreMachineId = found; }
+        else { readmoreBtn.classList.remove('visible'); }
+        infoPanel.classList.add('visible');
+        if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+      } else {
+        scheduleHide();
+      }
+    }
+  }
+});
+
+canvas2d.addEventListener('mouseup', () => { view2d.dragging = false; });
+canvas2d.addEventListener('contextmenu', (e) => e.preventDefault());
+
+/* ── View mode toggle ── */
+window.toggleViewMode = function() {
+  is2DMode = !is2DMode;
+  const btn = document.getElementById('viewToggle');
+  const c3d = document.getElementById('canvas');
+  const hint = document.getElementById('cameraHint');
+  const L = T[getLang()];
+
+  if (is2DMode) {
+    btn.textContent = L.view3d;
+    btn.classList.add('is2d');
+    c3d.classList.add('hidden');
+    canvas2d.classList.add('active');
+    document.getElementById('topTitle').textContent = L.title2d;
+    if (hint) hint.style.display = 'none';
+    document.getElementById('navPad').style.display = 'none';
+    resize2D();
+    fitView2D();
+    animate2D();
+  } else {
+    btn.textContent = L.view2d;
+    btn.classList.remove('is2d');
+    c3d.classList.remove('hidden');
+    canvas2d.classList.remove('active');
+    document.getElementById('topTitle').textContent = L.title3d;
+    if (hint) hint.style.display = '';
+    document.getElementById('navPad').style.display = '';
+    if (anim2dId) { cancelAnimationFrame(anim2dId); anim2dId = null; }
+    // Force 3D resize in case window changed
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+};
+
+/* ─────────── Language system ─────────── */
+function applyLang() {
+  const L = T[getLang()];
+  // Page title
+  document.title = is2DMode ? (L.title2d || L.title3d) : L.title3d;
+  // Topbar
+  document.getElementById('topTitle').textContent = is2DMode ? L.title2d : L.title3d;
+  document.getElementById('navBack').textContent = L.backToOverview;
+  document.getElementById('btnAll').textContent = L.bothLines;
+  document.getElementById('btnSleeve').textContent = L.shrinkSleeve;
+  document.getElementById('btnBopp').textContent = L.boppLabels;
+  // View toggle
+  const vt = document.getElementById('viewToggle');
+  vt.textContent = is2DMode ? L.view3d : L.view2d;
+  // Reset view
+  document.getElementById('resetViewBtn').textContent = L.resetView;
+  // Play/pause
+  const pp = document.getElementById('playPauseBtn');
+  pp.innerHTML = isPaused ? ('\u25B6 ' + L.play) : ('\u25FC ' + L.stop);
+  // Speed label
+  document.getElementById('speedLabel').textContent = L.speed;
+  // Read more button
+  document.getElementById('ipReadmoreBtn').textContent = L.readMore;
+  // Camera hint
+  document.getElementById('cameraHint').textContent = L.cameraHint;
+  // Legend
+  document.getElementById('legPrinting').textContent = L.legendPrinting;
+  document.getElementById('legInspection').textContent = L.legendInspection;
+  document.getElementById('legSlitting').textContent = L.legendSlitting;
+  document.getElementById('legSeaming').textContent = L.legendSeaming;
+  document.getElementById('legUtility').textContent = L.legendUtility;
+  document.getElementById('legIdle').textContent = L.legendIdle;
+  document.getElementById('legSleeve').textContent = L.legendSleeve;
+  document.getElementById('legBopp').textContent = L.legendBopp;
+  // Comparison modal labels
+  document.getElementById('cmTitle').textContent = L.compTitle;
+  document.getElementById('cmLblManuf').textContent = L.compManufacturer;
+  document.getElementById('cmLblManual').textContent = L.compManualName;
+  document.getElementById('cmLblRole').textContent = L.compRole;
+  document.getElementById('cmLblPrintW').textContent = L.compPrintWidth;
+  document.getElementById('cmLblSpeed').textContent = L.compSpeed;
+  document.getElementById('cmLblPrecision').textContent = L.compPrecision;
+  // cmLblReg has no dedicated key in lang.js; leave as static or reuse a close match
+  // "Registration" in printing context is closely related to precision
+  document.getElementById('cmLblColors').textContent = L.compColors;
+  document.getElementById('cmLblCylinder').textContent = L.compCylinder;
+  document.getElementById('cmLblRollDia').textContent = L.compRollDia;
+  document.getElementById('cmLblMaterials').textContent = L.compMaterials;
+  document.getElementById('cmLblFeatures').textContent = L.compFeatures;
+  document.getElementById('cmLblBestFor').textContent = L.compBestFor;
+  // Comparison modal sub-headers
+  document.getElementById('cmHeadYad').textContent = L.badgePrimary + ' \u00b7 High Speed Auto Register';
+  document.getElementById('cmHeadYa800').textContent = L.badgeBackup + ' \u00b7 Standard Gravure';
+  // Language toggle active state
+  document.getElementById('langEn').classList.toggle('active', getLang() === 'en');
+  document.getElementById('langKa').classList.toggle('active', getLang() === 'ka');
+}
+
+window.switchLang = function(lang) {
+  setLang(lang);
+  // Save current view mode so it persists across reload
+  if (is2DMode) {
+    sessionStorage.setItem('viewMode', '2d');
+  } else {
+    sessionStorage.removeItem('viewMode');
+  }
+  // Reload to rebuild 3D sprite textures with new language
+  location.reload();
+};
+
+// Apply language on initial load
+applyLang();
+
+// Restore 2D mode if we were in 2D before language switch
+if (sessionStorage.getItem('viewMode') === '2d') {
+  sessionStorage.removeItem('viewMode');
+  window.toggleViewMode(); // switch to 2D
+}
+</script>
+
+</body>
+</html>

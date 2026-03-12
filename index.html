@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Factory Floor — Industrial Printing & Label Finishing</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f1117;
+    color: #e0e0e0;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: linear-gradient(135deg, #1a1d2e 0%, #2a2d3e 100%);
+    border-bottom: 1px solid #333;
+    padding: 0.8rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+  }
+  .header h1 { font-size: 1.15rem; font-weight: 700; color: #fff; }
+  .header p { font-size: 0.75rem; color: #888; }
+
+  /* ── Flow selector tabs ── */
+  .tabs {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .tab {
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: transparent;
+    color: #aaa;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  .tab:hover { border-color: #888; color: #fff; }
+  .tab.active-all { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+  .tab.active-sleeve { background: #9333ea; border-color: #9333ea; color: #fff; }
+  .tab.active-bopp { background: #0ea5e9; border-color: #0ea5e9; color: #fff; }
+
+  /* ── Main layout ── */
+  .main {
+    display: flex;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* ── Canvas area ── */
+  .canvas {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    position: relative;
+  }
+
+  /* ── Stage labels ── */
+  .stage-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.2rem;
+    margin-bottom: 0.6rem;
+  }
+  .stage-label {
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #555;
+    min-width: 20px;
+    padding-top: 0.5rem;
+  }
+  .stage-machines {
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+
+  /* ── Arrow between stages ── */
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem 0 0.2rem 32px;
+    color: #444;
+    font-size: 1.2rem;
+    transition: color 0.3s;
+  }
+  .flow-arrow svg { width: 24px; height: 24px; fill: currentColor; transition: transform 0.3s; }
+
+  /* ── Machine cards ── */
+  .machine {
+    background: #1a1d2e;
+    border: 1px solid #2a2d3e;
+    border-radius: 10px;
+    padding: 0.7rem 1rem;
+    width: 200px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .machine::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px;
+    height: 100%;
+    border-radius: 12px 0 0 12px;
+  }
+  .machine:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    border-color: #555;
+  }
+
+  /* Stage colors */
+  .machine.printing::before { background: #22c55e; }
+  .machine.inspection::before { background: #eab308; }
+  .machine.slitting::before { background: #f97316; }
+  .machine.seaming::before { background: #ec4899; }
+  .machine.utility::before { background: #64748b; }
+  .machine.idle::before { background: #ef4444; }
+
+  .machine .icon { font-size: 1.3rem; margin-bottom: 0.3rem; }
+  .machine .name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.15rem;
+  }
+  .machine .role {
+    font-size: 0.7rem;
+    color: #888;
+    line-height: 1.35;
+  }
+  .machine .badge {
+    display: inline-block;
+    margin-top: 0.35rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 99px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge.active { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .badge.backup { background: rgba(234,179,8,0.15); color: #eab308; }
+  .badge.idle-badge { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .badge.utility-badge { background: rgba(100,116,139,0.15); color: #94a3b8; }
+
+  /* Product badges on machines */
+  .product-tags {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.3rem;
+    flex-wrap: wrap;
+  }
+  .ptag {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .ptag.sleeve { background: rgba(147,51,234,0.2); color: #a78bfa; }
+  .ptag.bopp { background: rgba(14,165,233,0.2); color: #38bdf8; }
+
+  /* ── Dim machines not in selected flow ── */
+  .machine.dimmed {
+    opacity: 0.2;
+    transform: scale(0.97);
+    pointer-events: none;
+  }
+  .flow-arrow.dimmed { opacity: 0.1; }
+
+  /* ── Section headers ── */
+  .section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #555;
+    margin: 2rem 0 1rem 42px;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #1e2030;
+  }
+
+  /* ── Tooltip ── */
+  .tooltip-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 999;
+    pointer-events: none;
+  }
+  .tooltip-overlay.visible { display: block; }
+
+  .tooltip {
+    position: fixed;
+    z-index: 1000;
+    background: #1e2030;
+    border: 1px solid #3a3d4e;
+    border-radius: 14px;
+    padding: 1.5rem;
+    width: 380px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .tooltip.visible { opacity: 1; }
+
+  .tooltip .tt-header {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid #2a2d3e;
+  }
+  .tooltip .tt-icon { font-size: 2rem; }
+  .tooltip .tt-name { font-size: 1.1rem; font-weight: 700; color: #fff; }
+  .tooltip .tt-model { font-size: 0.75rem; color: #888; }
+
+  .tooltip .tt-explain {
+    background: rgba(59,130,246,0.08);
+    border-left: 3px solid #3b82f6;
+    padding: 0.8rem 1rem;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #c8d0e0;
+  }
+  .tooltip .tt-example {
+    background: rgba(234,179,8,0.08);
+    border-left: 3px solid #eab308;
+    padding: 0.8rem 1rem;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 1rem;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: #c8d0e0;
+  }
+  .tooltip .tt-example strong { color: #eab308; }
+
+  .tooltip .tt-specs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem 1rem;
+    font-size: 0.75rem;
+    margin-bottom: 0.8rem;
+  }
+  .tooltip .tt-specs dt { color: #666; }
+  .tooltip .tt-specs dd { color: #bbb; font-weight: 600; }
+
+  .tooltip .tt-status {
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .tooltip .tt-status.status-active { background: rgba(34,197,94,0.1); color: #22c55e; }
+  .tooltip .tt-status.status-backup { background: rgba(234,179,8,0.1); color: #eab308; }
+  .tooltip .tt-status.status-idle { background: rgba(239,68,68,0.1); color: #ef4444; }
+  .tooltip .tt-status.status-utility { background: rgba(100,116,139,0.1); color: #94a3b8; }
+
+  /* ── Compare button on machine cards ── */
+  .machine .compare-btn {
+    display: none;
+    margin-top: 0.7rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    border: 1px solid #3b82f6;
+    background: rgba(59,130,246,0.1);
+    color: #60a5fa;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    text-align: center;
+  }
+  .machine:hover .compare-btn { display: block; }
+  .machine .compare-btn:hover {
+    background: #3b82f6;
+    color: #fff;
+    transform: none;
+    box-shadow: 0 0 16px rgba(59,130,246,0.3);
+  }
+
+  /* ── Comparison modal ── */
+  .comparison-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 2000;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    justify-content: center;
+    align-items: center;
+  }
+  .comparison-overlay.visible { display: flex; }
+
+  .comparison-modal {
+    background: #1a1d2e;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 2rem;
+    width: 780px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+  }
+  .comparison-modal .cm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #2a2d3e;
+  }
+  .comparison-modal .cm-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .comparison-modal .cm-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: transparent;
+    color: #888;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .comparison-modal .cm-close:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
+
+  .comparison-modal .cm-grid {
+    display: grid;
+    grid-template-columns: 140px 1fr 1fr;
+    gap: 0;
+    font-size: 0.82rem;
+  }
+  .comparison-modal .cm-grid .cm-cell {
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid #1e2030;
+  }
+  .comparison-modal .cm-grid .cm-label {
+    color: #666;
+    font-weight: 600;
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid #1e2030;
+  }
+  .comparison-modal .cm-grid .cm-head {
+    font-weight: 700;
+    color: #fff;
+    font-size: 0.9rem;
+    padding: 0.8rem;
+    background: rgba(34,197,94,0.08);
+    border-bottom: 1px solid #2a2d3e;
+    text-align: center;
+  }
+  .comparison-modal .cm-grid .cm-head-label {
+    padding: 0.8rem;
+    background: rgba(34,197,94,0.08);
+    border-bottom: 1px solid #2a2d3e;
+  }
+  .comparison-modal .cm-grid .cm-val {
+    color: #ccc;
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid #1e2030;
+    text-align: center;
+  }
+  .cm-winner {
+    color: #22c55e !important;
+    font-weight: 700;
+  }
+  .cm-verdict {
+    margin-top: 1.5rem;
+    padding: 1rem 1.2rem;
+    background: rgba(59,130,246,0.08);
+    border-left: 3px solid #3b82f6;
+    border-radius: 0 10px 10px 0;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #c8d0e0;
+  }
+
+  /* ── Play/Pause button ── */
+  .play-btn {
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    border: 1px solid #22c55e;
+    background: rgba(34,197,94,0.1);
+    color: #22c55e;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .play-btn:hover { background: rgba(34,197,94,0.2); }
+  .play-btn.playing {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: rgba(239,68,68,0.1);
+  }
+  .play-btn.playing:hover { background: rgba(239,68,68,0.2); }
+
+  /* ── Flow animation styles ── */
+  @keyframes arrowBounce {
+    0%, 100% { transform: translateX(0); opacity: 0.6; }
+    50% { transform: translateX(6px); opacity: 1; }
+  }
+  @keyframes machineGlow {
+    0%, 100% { box-shadow: 0 0 0 rgba(0,0,0,0); }
+    50% { box-shadow: 0 0 20px var(--glow-color, rgba(59,130,246,0.3)); }
+  }
+  @keyframes particleFlow {
+    0% { left: -8px; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { left: calc(100% + 8px); opacity: 0; }
+  }
+  @keyframes sectionPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+  }
+
+  body.playing .flow-arrow:not(.dimmed) svg {
+    animation: arrowBounce 1.2s ease-in-out infinite;
+  }
+  body.playing .machine.printing:not(.dimmed) {
+    --glow-color: rgba(34,197,94,0.25);
+    animation: machineGlow 2.5s ease-in-out infinite;
+  }
+  body.playing .machine.inspection:not(.dimmed) {
+    --glow-color: rgba(234,179,8,0.25);
+    animation: machineGlow 2.5s ease-in-out infinite 0.3s;
+  }
+  body.playing .machine.slitting:not(.dimmed) {
+    --glow-color: rgba(249,115,22,0.25);
+    animation: machineGlow 2.5s ease-in-out infinite 0.6s;
+  }
+  body.playing .machine.seaming:not(.dimmed) {
+    --glow-color: rgba(236,72,153,0.25);
+    animation: machineGlow 2.5s ease-in-out infinite 0.9s;
+  }
+  body.playing .machine.utility:not(.dimmed) {
+    --glow-color: rgba(100,116,139,0.2);
+    animation: machineGlow 3s ease-in-out infinite;
+  }
+  body.playing .section-title {
+    animation: sectionPulse 3s ease-in-out infinite;
+  }
+
+  /* Flow particles */
+  .flow-particles {
+    position: relative;
+    height: 0;
+    overflow: visible;
+    padding-left: 42px;
+    pointer-events: none;
+  }
+  .flow-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    top: -6px;
+    opacity: 0;
+    filter: blur(0.5px);
+    box-shadow: 0 0 6px var(--particle-color);
+    background: var(--particle-color);
+  }
+  body.playing .flow-particle {
+    animation: particleFlow var(--particle-duration, 3s) linear infinite;
+    animation-delay: var(--particle-delay, 0s);
+  }
+
+  /* ── Responsive ── */
+  /* ── Language toggle ── */
+  .lang-toggle {
+    position: fixed; top: 0.8rem; right: 1.5rem; z-index: 200;
+    display: flex; gap: 0;
+  }
+  .lang-toggle button {
+    padding: 0.3rem 0.6rem; border: 1px solid #444;
+    background: transparent; color: #888; font-size: 0.7rem; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .lang-toggle button:first-child { border-radius: 4px 0 0 4px; }
+  .lang-toggle button:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
+  .lang-toggle button.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+
+  @media (max-width: 900px) {
+    .machine { width: 100%; }
+    .tooltip { width: 320px; }
+    .comparison-modal { padding: 1.2rem; }
+    .comparison-modal .cm-grid { grid-template-columns: 100px 1fr 1fr; font-size: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="lang-toggle">
+  <button onclick="switchLang('en')" id="langEn">EN</button>
+  <button onclick="switchLang('ka')" id="langKa">KA</button>
+</div>
+
+<div class="header">
+  <div>
+    <h1 id="pageTitle">Factory Floor — Industrial Printing & Label Finishing</h1>
+    <p id="pageSubtitle">Hover or tap any machine to learn what it does</p>
+  </div>
+  <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+    <a id="open3dLink" href="3d.html" style="padding:0.5rem 1.2rem; border-radius:6px; background:linear-gradient(135deg,#3b82f6,#9333ea); color:#fff; text-decoration:none; font-size:0.85rem; font-weight:600; transition:transform 0.2s;" onmouseenter="this.style.transform='scale(1.05)'" onmouseleave="this.style.transform='scale(1)'">Open 3D View</a>
+  <div class="tabs">
+    <button class="tab active-all" data-flow="all" onclick="setFlow('all')">All Equipment</button>
+    <button class="tab" data-flow="sleeve" onclick="setFlow('sleeve')">Shrink Sleeve Flow</button>
+    <button class="tab" data-flow="bopp" onclick="setFlow('bopp')">BOPP Label Flow</button>
+  </div>
+  </div>
+</div>
+
+<div class="canvas">
+
+  <!-- STAGE 1: PRINTING -->
+  <div class="section-title" id="sec1">Stage 1 — Printing</div>
+  <div class="stage-row">
+    <div class="stage-machines">
+
+      <div class="machine printing" data-id="yad" data-flows="sleeve,bopp"
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x1F5A8;&#xFE0F;</div>
+        <div class="name">YAD-K8800</div>
+        <div class="role">High-speed gravure press — primary printer</div>
+        <span class="badge active" data-badge="primary">Primary</span>
+        <div class="product-tags">
+          <span class="ptag sleeve">Sleeve</span>
+          <span class="ptag bopp">BOPP</span>
+        </div>
+        <button class="compare-btn" id="cmpBtnYad" onclick="event.stopPropagation(); openComparison()">Compare to YA800</button>
+      </div>
+
+      <div class="machine printing" data-id="ya800" data-flows="sleeve,bopp"
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x1F5A8;&#xFE0F;</div>
+        <div class="name">YA800</div>
+        <div class="role">Gravure press — backup / short runs</div>
+        <span class="badge backup" data-badge="backup">Backup</span>
+        <div class="product-tags">
+          <span class="ptag sleeve">Sleeve</span>
+          <span class="ptag bopp">BOPP</span>
+        </div>
+        <button class="compare-btn" id="cmpBtnYa800" onclick="event.stopPropagation(); openComparison()">Compare to YAD-K8800</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Flow particles: Stage 1 → 2 -->
+  <div class="flow-particles" id="fp-1-2">
+    <div class="flow-particle" style="--particle-color:#22c55e; --particle-duration:2.5s; --particle-delay:0s;"></div>
+    <div class="flow-particle" style="--particle-color:#22c55e; --particle-duration:2.5s; --particle-delay:0.8s;"></div>
+    <div class="flow-particle" style="--particle-color:#22c55e; --particle-duration:2.5s; --particle-delay:1.6s;"></div>
+  </div>
+
+  <div class="flow-arrow" data-flows="sleeve,bopp">
+    <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+  </div>
+
+  <!-- STAGE 2: INSPECTION -->
+  <div class="section-title" id="sec2">Stage 2 — Inspection</div>
+  <div class="stage-row">
+    <div class="stage-machines">
+
+      <div class="machine inspection" data-id="ztm" data-flows="sleeve,bopp"
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x1F50D;</div>
+        <div class="name">ZTM-E1300</div>
+        <div class="role">Inspection & rewind — catches defects, resplices rolls</div>
+        <span class="badge active" data-badge="active">Active</span>
+        <div class="product-tags">
+          <span class="ptag sleeve">Sleeve</span>
+          <span class="ptag bopp">BOPP</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Flow particles: Stage 2 → 3 -->
+  <div class="flow-particles" id="fp-2-3">
+    <div class="flow-particle" style="--particle-color:#eab308; --particle-duration:2.5s; --particle-delay:0s;"></div>
+    <div class="flow-particle" style="--particle-color:#eab308; --particle-duration:2.5s; --particle-delay:0.8s;"></div>
+    <div class="flow-particle" style="--particle-color:#eab308; --particle-duration:2.5s; --particle-delay:1.6s;"></div>
+  </div>
+
+  <div class="flow-arrow" data-flows="sleeve,bopp">
+    <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+  </div>
+
+  <!-- STAGE 3: SLITTING -->
+  <div class="section-title" id="sec3">Stage 3 — Slitting</div>
+  <div class="stage-row">
+    <div class="stage-machines">
+
+      <div class="machine slitting" data-id="dfq" data-flows="sleeve,bopp"
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x2702;&#xFE0F;</div>
+        <div class="name">DFQ1300C3-3</div>
+        <div class="role">Advanced slitter — PLC controlled, precision cuts</div>
+        <span class="badge active" data-badge="primary">Primary</span>
+        <div class="product-tags">
+          <span class="ptag sleeve">Sleeve</span>
+          <span class="ptag bopp">BOPP</span>
+        </div>
+      </div>
+
+      <div class="machine slitting" data-id="wfq" data-flows="sleeve,bopp"
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x2702;&#xFE0F;</div>
+        <div class="name">WFQ-1000/1300</div>
+        <div class="role">Secondary slitter — backup capacity</div>
+        <span class="badge backup" data-badge="secondary">Secondary</span>
+        <div class="product-tags">
+          <span class="ptag sleeve">Sleeve</span>
+          <span class="ptag bopp">BOPP</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Flow particles: Stage 3 → 4 -->
+  <div class="flow-particles" id="fp-3-4">
+    <div class="flow-particle" style="--particle-color:#f97316; --particle-duration:2.5s; --particle-delay:0s;"></div>
+    <div class="flow-particle" style="--particle-color:#f97316; --particle-duration:2.5s; --particle-delay:0.8s;"></div>
+    <div class="flow-particle" style="--particle-color:#f97316; --particle-duration:2.5s; --particle-delay:1.6s;"></div>
+  </div>
+
+  <div class="flow-arrow" data-flows="sleeve">
+    <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+  </div>
+
+  <!-- STAGE 4: SEAMING (Sleeves only) -->
+  <div class="section-title" id="sec4">Stage 4 — Seaming (Sleeves Only)</div>
+  <div class="stage-row">
+    <div class="stage-machines">
+
+      <div class="machine seaming" data-id="gshz" data-flows="sleeve"
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x1F517;</div>
+        <div class="name">GSHZ-250</div>
+        <div class="role">Center-seal gluing — turns flat film into tubes</div>
+        <span class="badge active" data-badge="active">Active</span>
+        <div class="product-tags">
+          <span class="ptag sleeve">Sleeve Only</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Flow particles: Stage 4 → 5 -->
+  <div class="flow-particles" id="fp-4-5">
+    <div class="flow-particle" style="--particle-color:#ec4899; --particle-duration:2.5s; --particle-delay:0s;"></div>
+    <div class="flow-particle" style="--particle-color:#ec4899; --particle-duration:2.5s; --particle-delay:0.8s;"></div>
+    <div class="flow-particle" style="--particle-color:#ec4899; --particle-duration:2.5s; --particle-delay:1.6s;"></div>
+  </div>
+
+  <div class="flow-arrow" data-flows="sleeve">
+    <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+  </div>
+
+  <!-- STAGE 5: FINAL INSPECTION -->
+  <div class="section-title" id="sec5">Stage 5 — Final Inspection (Sleeves)</div>
+  <div class="stage-row">
+    <div class="stage-machines">
+
+      <div class="machine inspection" data-id="ztm2" data-flows="sleeve"
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x1F50D;</div>
+        <div class="name">ZTM-E1300 (2nd Pass)</div>
+        <div class="role">Final quality check on seamed sleeve rolls</div>
+        <span class="badge active" data-badge="active">Active</span>
+        <div class="product-tags">
+          <span class="ptag sleeve">Sleeve Only</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- UTILITY -->
+  <div class="section-title" id="secUtil">Utility</div>
+  <div class="stage-row">
+    <div class="stage-machines">
+
+      <div class="machine utility" data-id="comp" data-flows="sleeve,bopp"
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x1F4A8;</div>
+        <div class="name">Lupamat Compressor</div>
+        <div class="role">Compressed air for all pneumatic systems</div>
+        <span class="badge utility-badge" data-badge="utility">Always On</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- IDLE EQUIPMENT -->
+  <div class="section-title" id="secIdle" style="color:#ef4444; border-color: rgba(239,68,68,0.2);">Idle Equipment — Not In Current Production</div>
+  <div class="stage-row">
+    <div class="stage-machines">
+
+      <div class="machine idle" data-id="polar" data-flows=""
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x1FA93;</div>
+        <div class="name">Polar Mohr 76</div>
+        <div class="role">Guillotine cutter — precision sheet cutting</div>
+        <span class="badge idle-badge" data-badge="idle">Idle</span>
+      </div>
+
+      <div class="machine idle" data-id="qd300" data-flows=""
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x1F4CF;</div>
+        <div class="name">QD-300</div>
+        <div class="role">Cross cutter — cuts rolls into fixed-length pieces</div>
+        <span class="badge idle-badge" data-badge="idle">Idle</span>
+      </div>
+
+      <div class="machine idle" data-id="ozm" data-flows=""
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x1F6CD;&#xFE0F;</div>
+        <div class="name">OZM-55 LS</div>
+        <div class="role">Bag cutting machine — makes sealed plastic bags</div>
+        <span class="badge idle-badge" data-badge="idle">Idle</span>
+      </div>
+
+      <div class="machine idle" data-id="lam" data-flows=""
+        onmouseenter="showTip(this)" onmouseleave="hideTip()">
+        <div class="icon">&#x1F4D1;</div>
+        <div class="name">Laminating Machine</div>
+        <div class="role">Bonds multiple film layers — unknown model</div>
+        <span class="badge idle-badge" data-badge="idle">Idle</span>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip-overlay" id="ttOverlay">
+  <div class="tooltip" id="tooltip"></div>
+</div>
+
+<!-- Comparison Modal -->
+<div class="comparison-overlay" id="compOverlay" onclick="if(event.target===this)closeComparison()">
+  <div class="comparison-modal">
+    <div class="cm-header">
+      <div class="cm-title" id="compTitle">YAD-K8800 vs YA800 — Printing Press Comparison</div>
+      <button class="cm-close" onclick="closeComparison()">&times;</button>
+    </div>
+    <div class="cm-grid">
+      <div class="cm-head-label"></div>
+      <div class="cm-head">YAD-K8800<br><span style="font-size:0.7rem;font-weight:400;color:#22c55e;">Primary &middot; High Speed Auto Register</span></div>
+      <div class="cm-head">YA800<br><span style="font-size:0.7rem;font-weight:400;color:#eab308;">Backup &middot; Standard Gravure</span></div>
+
+      <div class="cm-label" id="cmpManufacturer">Manufacturer</div>
+      <div class="cm-val">WITY / Jinghua Machinery Co.</div>
+      <div class="cm-val">WITY Machinery Group</div>
+
+      <div class="cm-label" id="cmpRole">Role</div>
+      <div class="cm-val">Main press — high-volume, flexible packaging capable</div>
+      <div class="cm-val">Backup — short runs, simpler jobs</div>
+
+      <div class="cm-label" id="cmpPrintWidth">Print Width</div>
+      <div class="cm-val">800 mm</div>
+      <div class="cm-val">800 mm (max web 820 mm)</div>
+
+      <div class="cm-label" id="cmpSpeed">Speed</div>
+      <div class="cm-val cm-winner">50–150 m/min</div>
+      <div class="cm-val">10–60 m/min</div>
+
+      <div class="cm-label" id="cmpPrecision">Overprint Precision</div>
+      <div class="cm-val cm-winner">&pm;0.12 mm (auto register)</div>
+      <div class="cm-val">&pm;0.2 mm (manual adjustment)</div>
+
+      <div class="cm-label" id="cmpRegistration">Registration</div>
+      <div class="cm-val cm-winner">Automatic color-to-color alignment</div>
+      <div class="cm-val">Manual longitudinal &amp; transverse</div>
+
+      <div class="cm-label" id="cmpColors">Color Stations</div>
+      <div class="cm-val">8 printing-unit operation boxes</div>
+      <div class="cm-val cm-winner">1–10 configurable</div>
+
+      <div class="cm-label" id="cmpCylinder">Cylinder Diameter</div>
+      <div class="cm-val">—</div>
+      <div class="cm-val">80–270 mm</div>
+
+      <div class="cm-label" id="cmpRollDia">Roll Diameter</div>
+      <div class="cm-val">600 mm (76 mm core)</div>
+      <div class="cm-val">Max 600 mm</div>
+
+      <div class="cm-label" id="cmpMaterials">Materials</div>
+      <div class="cm-val cm-winner" style="text-align:left;font-size:0.78rem;">OPP, BOPP, CPP, PET, PA, cellophane, PVC, PO, PVDC, composite films up to 150 g/m&sup2;</div>
+      <div class="cm-val" style="text-align:left;font-size:0.78rem;">PE, PP, polyester, aluminum foil</div>
+
+      <div class="cm-label" id="cmpPower">Power</div>
+      <div class="cm-val">175 kW</div>
+      <div class="cm-val cm-winner">33 kW</div>
+
+      <div class="cm-label" id="cmpWeight">Weight</div>
+      <div class="cm-val">26,000 kg</div>
+      <div class="cm-val cm-winner">5,600 kg</div>
+
+      <div class="cm-label" id="cmpFeatures">Key Features</div>
+      <div class="cm-val" style="text-align:left;font-size:0.78rem;">Auto color register, A/B shaft change, inspection unit, automatic roll receiving</div>
+      <div class="cm-val" style="text-align:left;font-size:0.78rem;">Separate heating &amp; fan drying, manual overprint adjustment, cylinder changes</div>
+
+      <div class="cm-label" id="cmpBestFor">Best For</div>
+      <div class="cm-val" style="color:#22c55e;">Large runs, multi-color labels, flexible packaging (herbs, snacks, sachets)</div>
+      <div class="cm-val" style="color:#eab308;">Short runs, simpler designs, overflow when YAD is busy</div>
+    </div>
+    <div class="cm-verdict" id="compVerdict">
+      <strong id="compSummaryLabel">Summary:</strong> The YAD-K8800 is the true workhorse — 2.5&times; faster, nearly 2&times; more precise with automatic color registration, and handles a much wider range of materials (including composite films). It's positioned as a flexible-packaging press, not just a label printer. The YA800 trades speed and precision for lower power draw (33 vs 175 kW), simpler operation, and flexibility with up to 10 color stations. Use the YAD for big production runs and complex multi-material jobs; the YA800 for short runs, simpler single-material work, or when the YAD is busy.
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { T, getLang, setLang } from './lang.js';
+
+const DATA = {
+  yad: {
+    icon: '\u{1F5A8}\uFE0F',
+    name: 'YAD-K8800 High Speed Gravure Press',
+    model: 'WITY Machinery Group \u2014 Model YAD-8800K',
+    explain: 'This is the main printing machine. It takes a plain plastic film roll and prints all the colors, logos, and designs onto it using engraved metal cylinders (one cylinder per color). The film passes through each color station one by one until the full artwork is complete.',
+    example: 'Think of it like a giant stamp roller. Imagine you want a juice bottle label with 8 colors \u2014 the film rolls through 8 stations, and each one stamps a different color. At 150 meters per minute, it prints about 2.5 football fields of film every minute.',
+    specs: {
+      'Print width': '800 mm',
+      'Speed': '50\u2013150 m/min',
+      'Precision': '\u00b10.12 mm',
+      'Colors': 'Up to 8 stations',
+      'Power': '175 kW',
+      'Weight': '26,000 kg',
+      'Materials': 'BOPP, PET, PVC, PE, PA, cellophane',
+      'Features': 'Auto color register, A/B shaft change'
+    },
+    status: 'active',
+    statusText: 'PRIMARY \u2014 used for both products',
+    compareTo: 'ya800'
+  },
+  ya800: {
+    icon: '\u{1F5A8}\uFE0F',
+    name: 'YA800 Gravure Press',
+    model: 'WITY Machinery Group \u2014 Model YA 800',
+    explain: 'This is the backup printing press. It does the same job as the YAD-K8800 (printing artwork onto film) but is slower and less precise. It is used for shorter print runs, simpler jobs, or when the main press is busy.',
+    example: 'If the main press is like a high-speed highway printer, this one is the reliable city-road printer. It gets the job done for smaller orders \u2014 like printing 5,000 labels instead of 500,000.',
+    specs: {
+      'Print width': '800 mm',
+      'Speed': '10\u201360 m/min',
+      'Precision': '\u00b10.2 mm',
+      'Colors': '1\u201310 stations',
+      'Power': '33 kW',
+      'Weight': '5,600 kg',
+      'Materials': 'PE, PP, polyester, aluminum foil',
+      'Roll diameter': 'Max 600 mm'
+    },
+    status: 'backup',
+    statusText: 'BACKUP \u2014 used for short runs / simpler jobs',
+    compareTo: 'yad'
+  },
+  ztm: {
+    icon: '\u{1F50D}',
+    name: 'ZTM-E1300 Inspection Machine',
+    model: 'ZHONGTAI \u2014 Model ZTM-E1300',
+    explain: 'This is the quality control machine. After printing, the roll passes through this machine so an operator can visually check for print defects (smudges, color shifts, missing ink). When a defect is found, the machine memorizes the spot, reverses back to it, and the operator cuts out the bad section and splices the roll back together.',
+    example: 'Imagine flipping through a photo album at high speed. You spot a blurry photo, hit a button, the machine rewinds right to that page, you rip it out and tape the album back together. The roll leaves cleaner than it came in.',
+    specs: {
+      'Max speed': '200 m/min',
+      'Width': '1,300 mm',
+      'Memory': 'Defect position auto-saved',
+      'Presets': '50 material groups',
+      'Features': 'Auto-reverse to flaw, S-curve accel/decel',
+      'Tension': 'Taper control (speed + perimeter curves)'
+    },
+    status: 'active',
+    statusText: 'ACTIVE \u2014 used for both products (sometimes twice for sleeves)'
+  },
+  ztm2: {
+    icon: '\u{1F50D}',
+    name: 'ZTM-E1300 (Second Pass)',
+    model: 'Same machine, second use in the sleeve production line',
+    explain: 'After the flat film has been glued into a tube (seamed), it passes through the inspection machine again. This second pass checks that the seam (glue line) is straight, strong, and defect-free before the sleeve rolls are shipped to the customer.',
+    example: 'It is like proofreading a document twice \u2014 once after writing it, and once after formatting it. The first pass caught print defects; this second pass catches seaming defects like crooked glue lines or weak bonds.',
+    specs: {
+      'Max speed': '200 m/min',
+      'Purpose': 'Seam quality verification',
+      'Checks': 'Glue line straightness, bond strength, splices',
+      'Presets': '50 material groups'
+    },
+    status: 'active',
+    statusText: 'ACTIVE \u2014 second inspection pass for Shrink Sleeves only'
+  },
+  dfq: {
+    icon: '\u2702\uFE0F',
+    name: 'DFQ1300C3-3 Advanced Slitter',
+    model: 'WITY Machinery Group \u2014 Model DFQ1300C3-3',
+    explain: 'This machine takes a wide printed roll (the \u201cmother roll\u201d) and slices it lengthwise into multiple narrow rolls. Think of it as cutting a wide carpet into narrow strips. It is computer-controlled with a touchscreen and can remember settings for 50 different materials.',
+    example: 'Say you printed a roll that is 1,300 mm wide with 6 identical label designs side by side. This machine cuts that one wide roll into 6 narrow rolls, each exactly the right width for one label. The blades are accurate enough that you would not notice the cut edge on the final bottle.',
+    specs: {
+      'Control': 'PLC + touchscreen (EN/CN)',
+      'Blades': 'Round blade + razor blade',
+      'Tension': 'Taper control (5 curve groups)',
+      'Presets': '50 material groups',
+      'Features': 'Auto web guide, hydraulic lift, auto air shafts',
+      'Rewind': 'Upper + lower shafts'
+    },
+    status: 'active',
+    statusText: 'PRIMARY SLITTER \u2014 used for both products'
+  },
+  wfq: {
+    icon: '\u2702\uFE0F',
+    name: 'WFQ-1000/1300 Slitter',
+    model: 'WITY Machinery Group \u2014 Model WFQ-1000',
+    explain: 'This is the secondary slitting machine. It does the same job as the DFQ (cutting wide rolls into narrow rolls) but with simpler controls. It runs alongside the DFQ when there is extra work, or handles simpler materials that do not need the DFQ\'s advanced tension control.',
+    example: 'If the DFQ is the precision surgeon, this machine is the reliable workhorse. For standard BOPP label rolls that are not as finicky as thin shrink film, this machine handles them just fine at up to 160 meters per minute.',
+    specs: {
+      'Max width': '1,100 mm (WFQ-1000)',
+      'Speed': '10\u2013160 m/min',
+      'Slit width': 'From 20 mm up',
+      'Precision': '\u00b10.2 mm',
+      'Blades': 'Straight (film) + round (optional)',
+      'Power': '2.75 kW',
+      'Weight': '2,200 kg',
+      'Web guide': 'Photoelectric (LPC + EPC)'
+    },
+    status: 'backup',
+    statusText: 'SECONDARY SLITTER \u2014 backup / parallel capacity'
+  },
+  gshz: {
+    icon: '\u{1F517}',
+    name: 'GSHZ-250 Center-Seal Gluing Machine',
+    model: 'LIANYING \u2014 Model GSHZ-250 / TCJ-HZ250',
+    explain: 'This is the machine that makes shrink sleeves possible. It takes a flat, narrow strip of printed film and glues one edge over the other to form a continuous tube. That tube is then wound back onto a roll. The customer later cuts the tube into short pieces and heat-shrinks them onto bottles.',
+    example: 'Imagine taking a flat strip of gift wrap and rolling it into a tube, gluing the overlapping edge shut. Now imagine doing that continuously at 300 meters per minute \u2014 that is what this machine does. The tube is what eventually becomes the sleeve you see on a juice or water bottle.',
+    specs: {
+      'Speed': '0\u2013300 m/min',
+      'Unwind width': '600 mm',
+      'Max rewind diameter': '700 mm',
+      'Materials': 'PVC and PET shrink film',
+      'Power': '3.5 kW',
+      'Air pressure': '5\u20136 bar',
+      'Features': 'Stroboscope, auto tension, solvent glue pump',
+      'Weight': '~1,000 kg'
+    },
+    status: 'active',
+    statusText: 'CRITICAL \u2014 only machine that makes sleeves (no sleeves without it)'
+  },
+  comp: {
+    icon: '\u{1F4A8}',
+    name: 'Lupamat Mi-Series Compressor',
+    model: 'Lupamat Makina (Izmir, Turkey) \u2014 Mi-Series',
+    explain: 'This is not a production machine \u2014 it is a utility. It generates compressed air, which is piped to every other machine in the factory. Compressed air powers the pneumatic cylinders (air-driven pistons) that clamp rolls, lift rollers, press printing cylinders down, and operate valves throughout the plant.',
+    example: 'Think of it as the factory\'s lungs. Without it, the other machines cannot grip, clamp, or move anything. When you hear a \u201cpsshh\u201d sound on a factory floor, that is compressed air being released \u2014 and this compressor is what generates it.',
+    specs: {
+      'Power range': '37\u2013160 kW',
+      'Voltage': '400V, 50Hz',
+      'Pressure options': '7.5 / 10 / 13 / 15 bar',
+      'Type': 'Screw compressor',
+      'Feeds': 'All pneumatic systems factory-wide'
+    },
+    status: 'utility',
+    statusText: 'ALWAYS ON \u2014 essential plant infrastructure'
+  },
+  polar: {
+    icon: '\u{1FA93}',
+    name: 'Polar Mohr 76 Guillotine Cutter',
+    model: 'Polar Mohr (Germany) \u2014 Model 76',
+    explain: 'This is a precision guillotine cutter made in Germany. It cuts stacks of flat sheets (paper or film) to exact sizes \u2014 like a giant paper cutter but programmable and extremely accurate. It is currently idle because the factory\'s products ship as rolls, not cut sheets.',
+    example: 'Imagine a paper cutter at an office, but industrial-sized, programmable, and capable of cutting through a thick stack of printed sheets in one chop. If the factory ever wanted to sell pre-cut label sheets (like sticker sheets), this machine would do it.',
+    specs: {
+      'Cutting width': '760 mm',
+      'Control': 'Programmable with memory',
+      'Modes': 'Manual + automatic',
+      'Origin': 'German-made (well-known brand)',
+      'Note': 'Missed by ChatGPT analysis entirely'
+    },
+    status: 'idle',
+    statusText: 'IDLE \u2014 no role in current roll-to-roll production'
+  },
+  qd300: {
+    icon: '\u{1F4CF}',
+    name: 'QD-300 Cross Cutter',
+    model: 'WITY Machinery Group \u2014 Model QD-300',
+    explain: 'This machine takes a continuous roll and cuts it crosswise into individual pieces of a set length. It can track printed marks on the film to cut at exactly the right spot. With optional heating, it can also perforate (make tear lines) or heat-seal.',
+    example: 'Imagine an automated scissors that cuts a long ribbon into exactly 100mm pieces, one after another, at high speed \u2014 and each cut lands precisely on the printed line. Useful for making sample labels, tags, coupons, or tamper-evident bands.',
+    specs: {
+      'Width': '300 mm',
+      'Cut length': '0\u2013999 mm',
+      'Precision': '\u00b10.2 mm',
+      'Speed': '480 cuts/min',
+      'Power': '1.5 kW',
+      'Tracking': 'Photoelectric color mark',
+      'Extras': 'Perforation + heat-seal (optional)',
+      'Weight': '500 kg'
+    },
+    status: 'idle',
+    statusText: 'IDLE \u2014 not part of standard label flow, but has potential'
+  },
+  ozm: {
+    icon: '\u{1F6CD}\uFE0F',
+    name: 'OZM-55 LS Bag Cutting Machine',
+    model: 'Oz-Mak Plastik Makina (Istanbul) \u2014 Model OZM-55 LS',
+    explain: 'This is a completely different type of machine from the label line. It takes plastic film and turns it into sealed bags \u2014 like the bags you buy herbs, snacks, or small items in. It cuts the film, seals the bottom, and stacks finished bags automatically.',
+    example: 'Think of those clear plastic bags that herbs or candy come in at the grocery store. This machine makes those \u2014 up to 300 bags per minute. If the factory wanted to diversify into food packaging bags alongside labels, this machine is ready.',
+    specs: {
+      'Speed': '300 bags/min',
+      'Bag length': '70\u20132,000 mm',
+      'Max width': '520 mm',
+      'Film thickness': '0.007\u20130.080 mm',
+      'Power': '13 kW (380V)',
+      'Air': '6 bar',
+      'Drive': 'Servo motor',
+      'Weight': '1,340 kg'
+    },
+    status: 'idle',
+    statusText: 'IDLE \u2014 different product entirely (bags, not labels)'
+  },
+  lam: {
+    icon: '\u{1F4D1}',
+    name: 'Laminating Machine',
+    model: 'Unknown manufacturer and model \u2014 no manual provided',
+    explain: 'This machine bonds two or more layers of film together into a single structure. For example, it could combine a printed layer with a protective layer, or add a metallic barrier layer. The business owner confirmed it exists on-site, but no manual was found in the documents.',
+    example: 'Think of laminating a paper document \u2014 you sandwich it between two plastic layers and heat-seal them together. This machine does the same thing but at industrial scale with rolls of film. If activated, it would let the factory produce multi-layer packaging (like chip bags or coffee pouches) instead of just single-layer labels.',
+    specs: {
+      'Status': 'On-site (owner confirmed)',
+      'Manual': 'Not provided',
+      'Model': 'Unknown',
+      'Potential': 'Biggest growth opportunity per analysis'
+    },
+    status: 'idle',
+    statusText: 'IDLE \u2014 biggest untapped growth opportunity if activated'
+  }
+};
+
+/* ── Tooltip logic ── */
+const ttEl = document.getElementById('tooltip');
+const ttOverlay = document.getElementById('ttOverlay');
+
+function showTip(el) {
+  const id = el.dataset.id;
+  const d = DATA[id];
+  if (!d) return;
+
+  const L = T[getLang()];
+  const mL = L.machines[id];
+
+  const explain = mL ? mL.desc : d.explain;
+  const example = mL ? mL.example : d.example;
+  const exampleLabel = L.example || 'Example:';
+
+  let specsHtml = '';
+  for (const [k, v] of Object.entries(d.specs)) {
+    specsHtml += `<dt>${k}</dt><dd>${v}</dd>`;
+  }
+
+  const statusClass = {
+    active: 'status-active',
+    backup: 'status-backup',
+    idle: 'status-idle',
+    utility: 'status-utility'
+  }[d.status] || '';
+
+  // Build translated name: use model from the card's .name div, add translated label
+  const cardModel = el.querySelector('.name')?.textContent || '';
+  const ttName = (mL && cardModel) ? (cardModel + ' — ' + mL.label) : d.name;
+
+  ttEl.innerHTML = `
+    <div class="tt-header">
+      <span class="tt-icon">${d.icon}</span>
+      <div>
+        <div class="tt-name">${ttName}</div>
+        <div class="tt-model">${d.model}</div>
+      </div>
+    </div>
+    <div class="tt-explain">${explain}</div>
+    <div class="tt-example"><strong>${exampleLabel}</strong> ${example}</div>
+    <dl class="tt-specs">${specsHtml}</dl>
+    <div class="tt-status ${statusClass}">${d.statusText}</div>
+  `;
+
+  // Position
+  const rect = el.getBoundingClientRect();
+  let left = rect.right + 16;
+  let top = rect.top;
+
+  // If overflows right, show on left
+  if (left + 400 > window.innerWidth) {
+    left = rect.left - 396;
+  }
+  // If overflows left too, center below
+  if (left < 8) {
+    left = Math.max(8, rect.left);
+    top = rect.bottom + 12;
+  }
+  // If overflows bottom
+  if (top + 500 > window.innerHeight) {
+    top = Math.max(8, window.innerHeight - 520);
+  }
+
+  ttEl.style.left = left + 'px';
+  ttEl.style.top = top + 'px';
+  ttOverlay.classList.add('visible');
+  ttEl.classList.add('visible');
+}
+
+function hideTip() {
+  ttOverlay.classList.remove('visible');
+  ttEl.classList.remove('visible');
+}
+
+/* ── Flow filter logic ── */
+function setFlow(flow) {
+  // Update tabs
+  document.querySelectorAll('.tab').forEach(t => {
+    t.className = 'tab';
+    if (t.dataset.flow === flow) {
+      t.classList.add(flow === 'all' ? 'active-all' : flow === 'sleeve' ? 'active-sleeve' : 'active-bopp');
+    }
+  });
+
+  // Update machines
+  document.querySelectorAll('.machine').forEach(m => {
+    const flows = m.dataset.flows;
+    if (flow === 'all') {
+      m.classList.remove('dimmed');
+    } else if (flows && flows.includes(flow)) {
+      m.classList.remove('dimmed');
+    } else {
+      m.classList.add('dimmed');
+    }
+  });
+
+  // Update arrows
+  document.querySelectorAll('.flow-arrow').forEach(a => {
+    const flows = a.dataset.flows || '';
+    if (flow === 'all') {
+      a.classList.remove('dimmed');
+    } else if (flows.includes(flow)) {
+      a.classList.remove('dimmed');
+    } else {
+      a.classList.add('dimmed');
+    }
+  });
+}
+
+/* ── Comparison modal ── */
+function openComparison() {
+  document.getElementById('compOverlay').classList.add('visible');
+}
+
+function closeComparison() {
+  document.getElementById('compOverlay').classList.remove('visible');
+}
+
+// Close on Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeComparison();
+});
+
+/* ── Play / Pause ── */
+let isPlaying = false;
+
+function togglePlay() {
+  isPlaying = !isPlaying;
+  document.body.classList.toggle('playing', isPlaying);
+  const btn = document.getElementById('playBtn');
+  const icon = document.getElementById('playIcon');
+  const label = document.getElementById('playLabel');
+  if (isPlaying) {
+    btn.classList.add('playing');
+    icon.innerHTML = '\u23F8';
+    label.textContent = 'Pause';
+  } else {
+    btn.classList.remove('playing');
+    icon.innerHTML = '\u25B6';
+    label.textContent = 'Play';
+  }
+}
+
+/* ── Language system ── */
+function applyLang() {
+  const L = T[getLang()];
+
+  // Page title
+  document.title = L.titleIndex;
+  document.getElementById('pageTitle').textContent = L.titleIndex;
+  document.getElementById('pageSubtitle').textContent = L.subtitle;
+
+  // Open 3D link
+  document.getElementById('open3dLink').textContent = L.open3d;
+
+  // Tabs
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.dataset.flow === 'all') t.textContent = L.allEquipment;
+    else if (t.dataset.flow === 'sleeve') t.textContent = L.sleeveFlow;
+    else if (t.dataset.flow === 'bopp') t.textContent = L.boppFlow;
+  });
+
+  // Section titles
+  document.getElementById('sec1').textContent = L.stage1;
+  document.getElementById('sec2').textContent = L.stage2;
+  document.getElementById('sec3').textContent = L.stage3;
+  document.getElementById('sec4').textContent = L.stage4;
+  document.getElementById('sec5').textContent = L.stage5;
+  document.getElementById('secUtil').textContent = L.stageUtil;
+  document.getElementById('secIdle').textContent = L.stageIdle;
+
+  // Machine cards — role text and badge text
+  document.querySelectorAll('.machine').forEach(m => {
+    const id = m.dataset.id;
+    const mL = L.machines[id];
+    if (mL) {
+      const roleEl = m.querySelector('.role');
+      if (roleEl) roleEl.textContent = mL.role;
+    }
+    // Badge text (uses data-badge attribute)
+    const badge = m.querySelector('.badge');
+    if (badge) {
+      const bt = badge.dataset.badge;
+      if (bt === 'primary') badge.textContent = L.badgePrimary;
+      else if (bt === 'active') badge.textContent = L.badgeActive;
+      else if (bt === 'backup') badge.textContent = L.badgeBackup;
+      else if (bt === 'secondary') badge.textContent = L.badgeSecondary;
+      else if (bt === 'idle') badge.textContent = L.badgeIdle;
+      else if (bt === 'utility') badge.textContent = L.badgeAlwaysOn;
+    }
+  });
+
+  // Compare buttons on cards
+  const cmpTo = L.compareTo || 'Compare to';
+  document.getElementById('cmpBtnYad').textContent = cmpTo + ' YA800';
+  document.getElementById('cmpBtnYa800').textContent = cmpTo + ' YAD-K8800';
+
+  // Comparison modal
+  document.getElementById('compTitle').textContent = L.compTitle;
+  document.getElementById('cmpManufacturer').textContent = L.compManufacturer;
+  document.getElementById('cmpRole').textContent = L.compRole;
+  document.getElementById('cmpPrintWidth').textContent = L.compPrintWidth;
+  document.getElementById('cmpSpeed').textContent = L.compSpeed;
+  document.getElementById('cmpPrecision').textContent = L.compPrecision;
+  // Registration — not a separate key in lang, use compPrecision context or keep as-is
+  // We'll map Registration to compColors since there's no separate key; leave unchanged for now
+  document.getElementById('cmpColors').textContent = L.compColors;
+  document.getElementById('cmpCylinder').textContent = L.compCylinder;
+  document.getElementById('cmpRollDia').textContent = L.compRollDia;
+  document.getElementById('cmpMaterials').textContent = L.compMaterials;
+  document.getElementById('cmpFeatures').textContent = L.compFeatures;
+  document.getElementById('cmpBestFor').textContent = L.compBestFor;
+  document.getElementById('compSummaryLabel').textContent = L.compSummary;
+
+  // Language toggle active state
+  document.getElementById('langEn').classList.toggle('active', getLang() === 'en');
+  document.getElementById('langKa').classList.toggle('active', getLang() === 'ka');
+}
+
+// Expose functions globally for inline onclick handlers (module scope is not global)
+window.setFlow = setFlow;
+window.showTip = showTip;
+window.hideTip = hideTip;
+window.openComparison = openComparison;
+window.closeComparison = closeComparison;
+window.togglePlay = togglePlay;
+window.switchLang = function(lang) {
+  setLang(lang);
+  applyLang();
+};
+
+// Apply language on first load
+applyLang();
+</script>
+
+</body>
+</html>
